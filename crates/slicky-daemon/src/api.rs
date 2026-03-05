@@ -123,7 +123,10 @@ fn map_slicky_error(e: SlickyError) -> (StatusCode, Json<ErrorResponse>) {
     let status = match &e {
         SlickyError::DeviceNotFound => StatusCode::SERVICE_UNAVAILABLE,
         SlickyError::MultipleDevices { .. } => StatusCode::SERVICE_UNAVAILABLE,
-        SlickyError::InvalidHexColor(_) | SlickyError::UnknownPreset(_) => StatusCode::BAD_REQUEST,
+        SlickyError::InvalidHexColor(_)
+        | SlickyError::UnknownPreset(_)
+        | SlickyError::DuplicatePreset(_)
+        | SlickyError::PresetNotFound(_) => StatusCode::BAD_REQUEST,
         SlickyError::Hid(_) | SlickyError::WriteMismatch { .. } => {
             StatusCode::INTERNAL_SERVER_ERROR
         }

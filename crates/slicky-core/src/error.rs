@@ -26,6 +26,14 @@ pub enum SlickyError {
     /// The HID write did not send the expected number of bytes.
     #[error("device write failed: expected {expected} bytes, got {actual}")]
     WriteMismatch { expected: usize, actual: usize },
+
+    /// A custom preset with the same name already exists.
+    #[error("duplicate preset: {0}")]
+    DuplicatePreset(String),
+
+    /// The requested preset was not found.
+    #[error("preset not found: {0}")]
+    PresetNotFound(String),
 }
 
 /// A type alias for `Result<T, SlickyError>`.

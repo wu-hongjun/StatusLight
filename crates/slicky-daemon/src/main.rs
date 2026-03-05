@@ -1,6 +1,7 @@
 mod api;
 mod slack;
 mod state;
+mod update;
 
 use std::path::PathBuf;
 
@@ -25,9 +26,9 @@ struct Args {
     #[arg(long)]
     slack_token: Option<String>,
 
-    /// Slack polling interval in seconds.
-    #[arg(long, default_value_t = 30)]
-    slack_interval: u64,
+    /// Slack polling interval in seconds (default: from config or 30).
+    #[arg(long)]
+    slack_interval: Option<u64>,
 }
 
 #[tokio::main]
@@ -54,19 +55,31 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Configure Slack if a token was provided.
-    if let Some(token) = args.slack_token {
+    // Load config for token fallback and update check.
+    let config = slicky_core::Config::load().unwrap_or_else(|e| {
+        log::warn!("Failed to load config, using defaults: {e}");
+        slicky_core::Config::default()
+    });
+
+    // Token priority: CLI arg > config file.
+    let slack_token = args.slack_token.or(config.slack.token);
+    let poll_interval = args
+        .slack_interval
+        .unwrap_or(config.slack.poll_interval_secs);
+
+    // Configure Slack if a token is available.
+    if let Some(token) = slack_token {
         let mut slack_state = state.inner.slack.lock().await;
         slack_state.token = Some(token);
-        slack_state.poll_interval_secs = args.slack_interval;
+        slack_state.poll_interval_secs = poll_interval;
         slack_state.emoji_map = slack::default_emoji_map();
         drop(slack_state);
         slack::start_polling(&state).await;
-        log::info!(
-            "Slack sync enabled (polling every {}s)",
-            args.slack_interval
-        );
+        log::info!("Slack sync enabled (polling every {poll_interval}s)");
     }
+
+    // Spawn a non-blocking update check on startup.
+    update::spawn_check_if_due();
 
     let app = api::router(state.clone());
 

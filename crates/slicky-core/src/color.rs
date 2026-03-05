@@ -1,5 +1,6 @@
 //! Color definitions and named presets for Slicky lights.
 
+use std::collections::HashMap;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -86,6 +87,63 @@ impl Color {
     /// Returns `true` if all channels are zero.
     pub fn is_off(&self) -> bool {
         self.r == 0 && self.g == 0 && self.b == 0
+    }
+
+    /// Linearly interpolate between two colors.
+    ///
+    /// `t` is clamped to `0.0..=1.0`. At `t=0` returns `self`, at `t=1` returns `other`.
+    pub fn lerp(self, other: Self, t: f64) -> Self {
+        let t = t.clamp(0.0, 1.0);
+        let r = self.r as f64 + (other.r as f64 - self.r as f64) * t;
+        let g = self.g as f64 + (other.g as f64 - self.g as f64) * t;
+        let b = self.b as f64 + (other.b as f64 - self.b as f64) * t;
+        Self {
+            r: r.round() as u8,
+            g: g.round() as u8,
+            b: b.round() as u8,
+        }
+    }
+
+    /// Scale brightness by a factor (0.0 = black, 1.0 = unchanged).
+    ///
+    /// The factor is clamped to `0.0..=1.0`.
+    pub fn scale_brightness(self, factor: f64) -> Self {
+        let f = factor.clamp(0.0, 1.0);
+        Self {
+            r: (self.r as f64 * f).round() as u8,
+            g: (self.g as f64 * f).round() as u8,
+            b: (self.b as f64 * f).round() as u8,
+        }
+    }
+
+    /// Create a color from HSV values.
+    ///
+    /// - `h`: hue in degrees (0..360, wraps around)
+    /// - `s`: saturation (0.0..=1.0)
+    /// - `v`: value/brightness (0.0..=1.0)
+    pub fn from_hsv(h: f64, s: f64, v: f64) -> Self {
+        let s = s.clamp(0.0, 1.0);
+        let v = v.clamp(0.0, 1.0);
+        let h = ((h % 360.0) + 360.0) % 360.0;
+
+        let c = v * s;
+        let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+        let m = v - c;
+
+        let (r1, g1, b1) = match h as u32 {
+            0..60 => (c, x, 0.0),
+            60..120 => (x, c, 0.0),
+            120..180 => (0.0, c, x),
+            180..240 => (0.0, x, c),
+            240..300 => (x, 0.0, c),
+            _ => (c, 0.0, x),
+        };
+
+        Self {
+            r: ((r1 + m) * 255.0).round() as u8,
+            g: ((g1 + m) * 255.0).round() as u8,
+            b: ((b1 + m) * 255.0).round() as u8,
+        }
     }
 }
 
@@ -193,6 +251,19 @@ impl Preset {
             "inmeeting" => Ok(Self::InMeeting),
             _ => Err(SlickyError::UnknownPreset(s.to_string())),
         }
+    }
+
+    /// Return the color for this preset, applying any override from the map.
+    ///
+    /// If the preset name exists in `overrides`, the override hex value is used.
+    /// Falls back to the built-in default on parse failure or missing key.
+    pub fn color_with_overrides(&self, overrides: &HashMap<String, String>) -> Color {
+        if let Some(hex) = overrides.get(self.name()) {
+            if let Ok(c) = Color::from_hex(hex) {
+                return c;
+            }
+        }
+        self.color()
     }
 
     /// The lowercase display name for this preset.
@@ -396,5 +467,120 @@ mod tests {
         assert_eq!(Preset::InMeeting.color(), Color::new(255, 69, 0));
         assert_eq!(Preset::Orange.color(), Color::new(255, 165, 0));
         assert_eq!(Preset::Purple.color(), Color::new(128, 0, 128));
+    }
+
+    // --- Color::lerp ---
+
+    #[test]
+    fn lerp_at_zero_returns_self() {
+        let a = Color::new(100, 200, 50);
+        let b = Color::new(0, 0, 0);
+        assert_eq!(a.lerp(b, 0.0), a);
+    }
+
+    #[test]
+    fn lerp_at_one_returns_other() {
+        let a = Color::new(100, 200, 50);
+        let b = Color::new(0, 0, 255);
+        assert_eq!(a.lerp(b, 1.0), b);
+    }
+
+    #[test]
+    fn lerp_midpoint() {
+        let a = Color::new(0, 0, 0);
+        let b = Color::new(200, 100, 50);
+        let mid = a.lerp(b, 0.5);
+        assert_eq!(mid, Color::new(100, 50, 25));
+    }
+
+    #[test]
+    fn lerp_clamps_above_one() {
+        let a = Color::new(0, 0, 0);
+        let b = Color::new(100, 100, 100);
+        assert_eq!(a.lerp(b, 2.0), b);
+    }
+
+    // --- Color::scale_brightness ---
+
+    #[test]
+    fn scale_brightness_full() {
+        let c = Color::new(100, 200, 50);
+        assert_eq!(c.scale_brightness(1.0), c);
+    }
+
+    #[test]
+    fn scale_brightness_zero() {
+        let c = Color::new(100, 200, 50);
+        assert_eq!(c.scale_brightness(0.0), Color::off());
+    }
+
+    #[test]
+    fn scale_brightness_half() {
+        let c = Color::new(200, 100, 50);
+        let scaled = c.scale_brightness(0.5);
+        assert_eq!(scaled, Color::new(100, 50, 25));
+    }
+
+    // --- Color::from_hsv ---
+
+    #[test]
+    fn from_hsv_red() {
+        let c = Color::from_hsv(0.0, 1.0, 1.0);
+        assert_eq!(c, Color::new(255, 0, 0));
+    }
+
+    #[test]
+    fn from_hsv_green() {
+        let c = Color::from_hsv(120.0, 1.0, 1.0);
+        assert_eq!(c, Color::new(0, 255, 0));
+    }
+
+    #[test]
+    fn from_hsv_blue() {
+        let c = Color::from_hsv(240.0, 1.0, 1.0);
+        assert_eq!(c, Color::new(0, 0, 255));
+    }
+
+    #[test]
+    fn from_hsv_white() {
+        let c = Color::from_hsv(0.0, 0.0, 1.0);
+        assert_eq!(c, Color::new(255, 255, 255));
+    }
+
+    #[test]
+    fn from_hsv_black() {
+        let c = Color::from_hsv(0.0, 0.0, 0.0);
+        assert_eq!(c, Color::off());
+    }
+
+    // --- Preset::color_with_overrides ---
+
+    #[test]
+    fn color_with_overrides_uses_override() {
+        let mut overrides = HashMap::new();
+        overrides.insert("red".to_string(), "#FF4444".to_string());
+        assert_eq!(
+            Preset::Red.color_with_overrides(&overrides),
+            Color::new(255, 68, 68)
+        );
+    }
+
+    #[test]
+    fn color_with_overrides_falls_back_to_default() {
+        let overrides = HashMap::new();
+        assert_eq!(
+            Preset::Red.color_with_overrides(&overrides),
+            Preset::Red.color()
+        );
+    }
+
+    #[test]
+    fn color_with_overrides_ignores_invalid_hex() {
+        let mut overrides = HashMap::new();
+        overrides.insert("red".to_string(), "not-a-color".to_string());
+        assert_eq!(
+            Preset::Red.color_with_overrides(&overrides),
+            Preset::Red.color()
+        );
     }
 }

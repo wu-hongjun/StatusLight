@@ -1,6 +1,15 @@
-use anyhow::{Context, Result};
+mod animate;
+mod color_cmd;
+mod daemon_client;
+mod preset_cmd;
+mod slack;
+mod startup;
+mod update;
+
+use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use slicky_core::{Color, HidSlickyDevice, Preset, SlickyDevice};
+use daemon_client::DeviceProxy;
+use slicky_core::{AnimationType, Color, Config, HidSlickyDevice, Preset};
 
 #[derive(Parser)]
 #[command(
@@ -27,6 +36,194 @@ enum Commands {
     Presets,
     /// List connected Slicky devices
     Devices,
+    /// Play an animation on the light (blocking, Ctrl-C to stop)
+    Animate {
+        #[command(subcommand)]
+        action: AnimateAction,
+    },
+    /// Manage preset color overrides
+    Color {
+        #[command(subcommand)]
+        action: ColorAction,
+    },
+    /// Manage custom presets
+    Preset {
+        #[command(subcommand)]
+        action: PresetAction,
+    },
+    /// Manage Slack integration
+    Slack {
+        #[command(subcommand)]
+        action: SlackAction,
+    },
+    /// Manage automatic startup
+    Startup {
+        #[command(subcommand)]
+        action: StartupAction,
+    },
+    /// Check for updates
+    Update {
+        #[command(subcommand)]
+        action: UpdateAction,
+    },
+    /// Show device, Slack, and configuration status
+    Status,
+    /// View or manage configuration
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum AnimateAction {
+    /// Smooth sine-wave breathing effect
+    Breathing {
+        /// Base color name or hex (default: white)
+        #[arg(long, default_value = "white")]
+        color: String,
+        /// Speed multiplier (default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        speed: f64,
+    },
+    /// Hard on/off blink
+    Flash {
+        /// Base color name or hex (default: red)
+        #[arg(long, default_value = "red")]
+        color: String,
+        /// Speed multiplier (default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        speed: f64,
+    },
+    /// Morse code SOS pattern
+    Sos {
+        /// Base color name or hex (default: white)
+        #[arg(long, default_value = "white")]
+        color: String,
+        /// Speed multiplier (default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        speed: f64,
+    },
+    /// Sharp rise then exponential decay
+    Pulse {
+        /// Base color name or hex (default: white)
+        #[arg(long, default_value = "white")]
+        color: String,
+        /// Speed multiplier (default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        speed: f64,
+    },
+    /// Cycle through the full hue spectrum
+    Rainbow {
+        /// Speed multiplier (default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        speed: f64,
+    },
+    /// Smooth transition between two colors
+    Transition {
+        /// First color name or hex
+        #[arg(long, default_value = "red")]
+        color: String,
+        /// Second color name or hex
+        #[arg(long, default_value = "blue")]
+        color2: String,
+        /// Speed multiplier (default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        speed: f64,
+    },
+}
+
+#[derive(Subcommand)]
+enum ColorAction {
+    /// Override a built-in preset color
+    Override {
+        /// Preset name (e.g. "red", "busy")
+        name: String,
+        /// Hex color (e.g. "#FF4444")
+        hex: String,
+    },
+    /// Reset a preset color to its default
+    Reset {
+        /// Preset name, or omit with --all to reset all
+        name: Option<String>,
+        /// Reset all color overrides
+        #[arg(long)]
+        all: bool,
+    },
+    /// List all preset colors with overrides
+    List,
+}
+
+#[derive(Subcommand)]
+enum PresetAction {
+    /// Add a new custom preset
+    Add {
+        /// Preset name
+        name: String,
+        /// Hex color (e.g. "#6A0DAD")
+        #[arg(long)]
+        color: String,
+        /// Optional animation type (breathing, flash, sos, pulse, rainbow, transition)
+        #[arg(long)]
+        animation: Option<String>,
+        /// Animation speed multiplier (default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        speed: f64,
+    },
+    /// Remove a custom preset
+    Remove {
+        /// Preset name to remove
+        name: String,
+    },
+    /// List all custom presets
+    List {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum SlackAction {
+    /// Log in to Slack via OAuth
+    Login,
+    /// Remove saved Slack credentials
+    Logout,
+    /// Show Slack connection status
+    Status,
+    /// Set your Slack status text and emoji
+    SetStatus {
+        /// Status text (e.g. "In a meeting")
+        #[arg(long)]
+        text: String,
+        /// Status emoji (e.g. ":calendar:")
+        #[arg(long)]
+        emoji: String,
+    },
+    /// Clear your Slack status
+    ClearStatus,
+}
+
+#[derive(Subcommand)]
+enum StartupAction {
+    /// Enable automatic startup on login (macOS LaunchAgent)
+    Enable,
+    /// Disable automatic startup
+    Disable,
+    /// Show startup status
+    Status,
+}
+
+#[derive(Subcommand)]
+enum UpdateAction {
+    /// Check for a newer version of OpenSlicky
+    Check,
+}
+
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// Dump the full configuration to stdout
+    Show,
 }
 
 fn main() -> Result<()> {
@@ -35,34 +232,76 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Set { name } => {
-            let preset = Preset::from_name(&name).context("failed to resolve preset")?;
-            let color = preset.color();
-            let device = open_device()?;
-            device.set_color(color).context("failed to set color")?;
-            println!("Set to {} ({})", preset.name(), color);
+            // Try built-in preset first (with config overrides), then custom presets.
+            if let Ok(preset) = Preset::from_name(&name) {
+                let config = Config::load()?;
+                let color = preset.color_with_overrides(&config.colors);
+                let device = DeviceProxy::open()?;
+                device.set_color(color).context("failed to set color")?;
+                println!("Set to {} ({})", preset.name(), color);
+            } else {
+                // Check custom presets.
+                let config = Config::load()?;
+                let lower = name.to_lowercase();
+                if let Some(cp) = config
+                    .custom_presets
+                    .iter()
+                    .find(|p| p.name.to_lowercase() == lower)
+                {
+                    let color =
+                        Color::from_hex(&cp.color).context("invalid color in custom preset")?;
+
+                    // If the custom preset has an animation, run it.
+                    if let Some(ref anim_name) = cp.animation {
+                        let anim = AnimationType::from_name(anim_name)
+                            .ok_or_else(|| anyhow::anyhow!("unknown animation: {anim_name}"))?;
+                        animate::run(anim, color, Color::off(), cp.speed)?;
+                    } else {
+                        let device = DeviceProxy::open()?;
+                        device.set_color(color).context("failed to set color")?;
+                        println!("Set to {} ({})", cp.name, color);
+                    }
+                } else {
+                    bail!("unknown preset: {name}");
+                }
+            }
         }
         Commands::Rgb { r, g, b } => {
             let color = Color::new(r, g, b);
-            let device = open_device()?;
+            let device = DeviceProxy::open()?;
             device.set_color(color).context("failed to set color")?;
             println!("Set to RGB({}, {}, {}) {}", r, g, b, color);
         }
         Commands::Hex { color: hex } => {
             let color = Color::from_hex(&hex).context("failed to parse hex color")?;
-            let device = open_device()?;
+            let device = DeviceProxy::open()?;
             device.set_color(color).context("failed to set color")?;
             println!("Set to {color}");
         }
         Commands::Off => {
-            let device = open_device()?;
+            let device = DeviceProxy::open()?;
             device.off().context("failed to turn off")?;
             println!("Light off");
         }
         Commands::Presets => {
+            let config = Config::load()?;
             println!("{:<15}COLOR", "NAME");
             println!("{}", "-".repeat(28));
             for p in Preset::all() {
-                println!("{:<15}{}", p.name(), p.color());
+                let color = p.color_with_overrides(&config.colors);
+                println!("{:<15}{}", p.name(), color);
+            }
+            if !config.custom_presets.is_empty() {
+                println!();
+                println!("Custom presets:");
+                for cp in &config.custom_presets {
+                    let anim = cp
+                        .animation
+                        .as_deref()
+                        .map(|a| format!(" [{a}]"))
+                        .unwrap_or_default();
+                    println!("  {:<13}{}{}", cp.name, cp.color, anim);
+                }
             }
         }
         Commands::Devices => {
@@ -84,11 +323,128 @@ fn main() -> Result<()> {
                 }
             }
         }
+        Commands::Animate { action } => {
+            let (anim_type, color, color2, speed) = match action {
+                AnimateAction::Breathing { color, speed } => (
+                    AnimationType::Breathing,
+                    parse_color(&color)?,
+                    Color::off(),
+                    speed,
+                ),
+                AnimateAction::Flash { color, speed } => (
+                    AnimationType::Flash,
+                    parse_color(&color)?,
+                    Color::off(),
+                    speed,
+                ),
+                AnimateAction::Sos { color, speed } => (
+                    AnimationType::Sos,
+                    parse_color(&color)?,
+                    Color::off(),
+                    speed,
+                ),
+                AnimateAction::Pulse { color, speed } => (
+                    AnimationType::Pulse,
+                    parse_color(&color)?,
+                    Color::off(),
+                    speed,
+                ),
+                AnimateAction::Rainbow { speed } => {
+                    (AnimationType::Rainbow, Color::off(), Color::off(), speed)
+                }
+                AnimateAction::Transition {
+                    color,
+                    color2,
+                    speed,
+                } => (
+                    AnimationType::Transition,
+                    parse_color(&color)?,
+                    parse_color(&color2)?,
+                    speed,
+                ),
+            };
+            animate::run(anim_type, color, color2, speed)?;
+        }
+        Commands::Color { action } => match action {
+            ColorAction::Override { name, hex } => color_cmd::override_color(&name, &hex)?,
+            ColorAction::Reset { name, all } => {
+                if all {
+                    color_cmd::reset_all()?;
+                } else if let Some(name) = name {
+                    color_cmd::reset_color(&name)?;
+                } else {
+                    bail!("specify a preset name or use --all");
+                }
+            }
+            ColorAction::List => color_cmd::list_colors()?,
+        },
+        Commands::Preset { action } => match action {
+            PresetAction::Add {
+                name,
+                color,
+                animation,
+                speed,
+            } => preset_cmd::add(&name, &color, animation.as_deref(), speed)?,
+            PresetAction::Remove { name } => preset_cmd::remove(&name)?,
+            PresetAction::List { json } => {
+                if json {
+                    preset_cmd::list_json()?;
+                } else {
+                    preset_cmd::list()?;
+                }
+            }
+        },
+        Commands::Slack { action } => match action {
+            SlackAction::Login => slack::login()?,
+            SlackAction::Logout => slack::logout()?,
+            SlackAction::Status => slack::status()?,
+            SlackAction::SetStatus { text, emoji } => slack::set_status(&text, &emoji)?,
+            SlackAction::ClearStatus => slack::clear_status()?,
+        },
+        Commands::Startup { action } => match action {
+            StartupAction::Enable => startup::enable()?,
+            StartupAction::Disable => startup::disable()?,
+            StartupAction::Status => startup::status()?,
+        },
+        Commands::Update { action } => match action {
+            UpdateAction::Check => update::check()?,
+        },
+        Commands::Status => {
+            let devices = HidSlickyDevice::enumerate().context("failed to enumerate devices")?;
+            if devices.is_empty() {
+                println!("Device:  not connected");
+            } else {
+                println!("Device:  connected ({} found)", devices.len());
+            }
+
+            let config = Config::load()?;
+            if config.slack.token.is_some() {
+                println!("Slack:   configured");
+            } else {
+                println!("Slack:   not configured");
+            }
+            println!("Color overrides: {}", config.colors.len());
+            println!("Custom presets:  {}", config.custom_presets.len());
+        }
+        Commands::Config { action } => match action {
+            ConfigAction::Show => {
+                let config = Config::load()?;
+                let toml_str =
+                    toml::to_string_pretty(&config).context("failed to serialize config")?;
+                print!("{toml_str}");
+            }
+        },
     }
 
     Ok(())
 }
 
-fn open_device() -> Result<HidSlickyDevice> {
-    HidSlickyDevice::open().context("failed to open Slicky device")
+/// Parse a color string that can be either a preset name or a hex value.
+fn parse_color(s: &str) -> Result<Color> {
+    if let Ok(preset) = Preset::from_name(s) {
+        let config = Config::load()?;
+        Ok(preset.color_with_overrides(&config.colors))
+    } else {
+        Color::from_hex(s).context("invalid color (not a preset name or hex value)")
+    }
 }

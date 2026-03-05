@@ -22,34 +22,30 @@ jobs:
         run: brew install hidapi create-dmg
 
       - name: Build
+        env:
+          SLACK_CLIENT_ID: ${{ secrets.SLACK_CLIENT_ID }}
+          SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
         run: cargo build --workspace --release
 
-      - name: Package DMG
+      - name: Build .app bundle and DMG
+        run: bash scripts/build-app.sh "${GITHUB_REF_NAME}"
+
+      - name: Package FFI artifacts
         run: |
           TAG="${GITHUB_REF_NAME}"
-          STAGING="OpenSlicky-${TAG}"
-          mkdir -p "${STAGING}"
+          FFI_DIR="OpenSlicky-FFI-${TAG}"
+          mkdir -p "${FFI_DIR}"
 
-          # Binaries
-          cp target/release/slicky  "${STAGING}/"
-          cp target/release/slickyd "${STAGING}/"
+          cp target/release/libslicky_ffi.a     "${FFI_DIR}/" 2>/dev/null || true
+          cp target/release/libslicky_ffi.dylib  "${FFI_DIR}/" 2>/dev/null || true
+          cp crates/slicky-ffi/include/slicky.h  "${FFI_DIR}/" 2>/dev/null || true
 
-          # FFI artifacts
-          cp target/release/libslicky_ffi.a     "${STAGING}/" 2>/dev/null || true
-          cp target/release/libslicky_ffi.dylib  "${STAGING}/" 2>/dev/null || true
-          cp crates/slicky-ffi/include/slicky.h  "${STAGING}/" 2>/dev/null || true
-
-          # Create DMG
-          create-dmg \
-            --volname "OpenSlicky ${TAG}" \
-            --window-size 500 300 \
-            --icon-size 80 \
-            --no-internet-enable \
-            "OpenSlicky-${TAG}-aarch64-apple-darwin.dmg" \
-            "${STAGING}/"
+          zip -r "OpenSlicky-FFI-${TAG}.zip" "${FFI_DIR}/"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: OpenSlicky-*.dmg
+          files: |
+            OpenSlicky-*.dmg
+            OpenSlicky-FFI-*.zip

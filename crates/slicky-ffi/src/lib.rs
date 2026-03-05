@@ -26,6 +26,7 @@ fn error_code(e: &SlickyError) -> i32 {
         SlickyError::InvalidHexColor(_) => -4,
         SlickyError::UnknownPreset(_) => -4,
         SlickyError::WriteMismatch { .. } => -6,
+        SlickyError::DuplicatePreset(_) | SlickyError::PresetNotFound(_) => -4,
     }
 }
 

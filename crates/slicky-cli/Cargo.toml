@@ -13,3 +13,11 @@ clap = { workspace = true }
 anyhow = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
+serde_json = { workspace = true }
+ureq = { workspace = true }
+open = { workspace = true }
+semver = { workspace = true }
+dirs = { workspace = true }
+chrono = { workspace = true }
+ctrlc = { workspace = true }
+toml = { workspace = true }

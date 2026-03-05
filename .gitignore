@@ -12,5 +12,8 @@
 .vscode/
 *.iml
 
+# Build artifacts
+*.dmg
+
 # Environment
 .env
