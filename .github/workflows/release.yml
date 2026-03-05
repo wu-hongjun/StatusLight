@@ -22,7 +22,7 @@ jobs:
             deps: brew install hidapi
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
-            deps: sudo apt-get update && sudo apt-get install -y libhidapi-dev
+            deps: sudo apt-get update && sudo apt-get install -y libhidapi-dev libudev-dev
     steps:
       - uses: actions/checkout@v4
 
