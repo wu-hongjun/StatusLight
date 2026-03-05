@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://openslicky.dev/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/development/architecture/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/development/architecture/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/development/contributing/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/development/contributing/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/getting-started/installation/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/getting-started/installation/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/getting-started/quickstart/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/getting-started/quickstart/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/plans/001-full-stack-scaffold/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/001-full-stack-scaffold/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/plans/002-ci-cd-setup/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/002-ci-cd-setup/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/plans/003-github-pages/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/003-github-pages/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/reference/cli/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/reference/cli/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/reference/daemon-api/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/reference/daemon-api/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/reference/ffi/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/reference/ffi/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
     <url>
-         <loc>https://openslicky.dev/reference/protocol/</loc>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/reference/protocol/</loc>
          <lastmod>2026-03-05</lastmod>
     </url>
 </urlset>
