@@ -1,10 +1,10 @@
-//! Shared application state for the Slicky daemon.
+//! Shared application state for the StatusLight daemon.
 
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use slicky_core::{Color, HidSlickyDevice, SlackRule};
+use statuslight_core::{Color, HidSlickyDevice, SlackRule};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 

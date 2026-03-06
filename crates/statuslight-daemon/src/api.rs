@@ -1,4 +1,4 @@
-//! HTTP API route handlers for the Slicky daemon.
+//! HTTP API route handlers for the StatusLight daemon.
 
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -6,7 +6,7 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
-use slicky_core::{Color, HidSlickyDevice, Preset, SlickyDevice, SlickyError};
+use statuslight_core::{Color, HidSlickyDevice, Preset, StatusLightDevice, StatusLightError};
 
 use crate::slack;
 use crate::state::AppState;
@@ -122,15 +122,15 @@ struct SlackEnableResponse {
 
 // --- Error mapping ---
 
-fn map_slicky_error(e: SlickyError) -> (StatusCode, Json<ErrorResponse>) {
+fn map_error(e: StatusLightError) -> (StatusCode, Json<ErrorResponse>) {
     let status = match &e {
-        SlickyError::DeviceNotFound => StatusCode::SERVICE_UNAVAILABLE,
-        SlickyError::MultipleDevices { .. } => StatusCode::SERVICE_UNAVAILABLE,
-        SlickyError::InvalidHexColor(_)
-        | SlickyError::UnknownPreset(_)
-        | SlickyError::DuplicatePreset(_)
-        | SlickyError::PresetNotFound(_) => StatusCode::BAD_REQUEST,
-        SlickyError::Hid(_) | SlickyError::WriteMismatch { .. } => {
+        StatusLightError::DeviceNotFound => StatusCode::SERVICE_UNAVAILABLE,
+        StatusLightError::MultipleDevices { .. } => StatusCode::SERVICE_UNAVAILABLE,
+        StatusLightError::InvalidHexColor(_)
+        | StatusLightError::UnknownPreset(_)
+        | StatusLightError::DuplicatePreset(_)
+        | StatusLightError::PresetNotFound(_) => StatusCode::BAD_REQUEST,
+        StatusLightError::Hid(_) | StatusLightError::WriteMismatch { .. } => {
             StatusCode::INTERNAL_SERVER_ERROR
         }
     };
@@ -154,18 +154,18 @@ async fn try_set_color(
     if device_guard.is_none() {
         match HidSlickyDevice::open() {
             Ok(dev) => *device_guard = Some(dev),
-            Err(e) => return Err(map_slicky_error(e)),
+            Err(e) => return Err(map_error(e)),
         }
     }
 
     let dev = device_guard
         .as_ref()
-        .ok_or_else(|| map_slicky_error(SlickyError::DeviceNotFound))?;
+        .ok_or_else(|| map_error(StatusLightError::DeviceNotFound))?;
 
     if let Err(e) = dev.set_color(color) {
         // Device may have been disconnected — drop it so we reconnect next time.
         *device_guard = None;
-        return Err(map_slicky_error(e));
+        return Err(map_error(e));
     }
 
     drop(device_guard);
@@ -209,7 +209,7 @@ async fn post_color(
     // Try as hex first, then as preset name (with config overrides), then custom presets.
     let color = Color::from_hex(&req.color)
         .or_else(|_| {
-            let config = slicky_core::Config::load().unwrap_or_default();
+            let config = statuslight_core::Config::load().unwrap_or_default();
             // Check built-in presets with color overrides.
             Preset::from_name(&req.color)
                 .map(|p| p.color_with_overrides(&config.colors))
@@ -221,10 +221,10 @@ async fn post_color(
                         .find(|cp| cp.name == req.color)
                         .map(|cp| Color::from_hex(&cp.color))
                         .transpose()?
-                        .ok_or_else(|| SlickyError::UnknownPreset(req.color.clone()))
+                        .ok_or_else(|| StatusLightError::UnknownPreset(req.color.clone()))
                 })
         })
-        .map_err(map_slicky_error)?;
+        .map_err(map_error)?;
 
     try_set_color(&state, color).await?;
     Ok(Json(SetColorResponse {
@@ -265,7 +265,7 @@ async fn get_presets() -> impl IntoResponse {
 }
 
 async fn get_devices() -> Result<Json<Vec<DeviceEntry>>, (StatusCode, Json<ErrorResponse>)> {
-    let devices = HidSlickyDevice::enumerate().map_err(map_slicky_error)?;
+    let devices = HidSlickyDevice::enumerate().map_err(map_error)?;
     let entries: Vec<DeviceEntry> = devices
         .into_iter()
         .map(|d| DeviceEntry {

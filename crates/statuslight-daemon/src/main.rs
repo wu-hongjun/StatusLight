@@ -13,13 +13,13 @@ use state::AppState;
 
 #[derive(Parser)]
 #[command(
-    name = "slickyd",
+    name = "statuslightd",
     version,
-    about = "HTTP daemon for Slicky USB status lights"
+    about = "HTTP daemon for StatusLight USB status lights"
 )]
 struct Args {
     /// Path to the Unix domain socket.
-    #[arg(long, default_value = "/tmp/slicky.sock")]
+    #[arg(long, default_value = "/tmp/statuslight.sock")]
     socket: PathBuf,
 
     /// Slack app-level token for Socket Mode (overrides config).
@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
     let state = AppState::new();
 
     // Try to open the device at startup (non-fatal if not found).
-    match slicky_core::HidSlickyDevice::open() {
+    match statuslight_core::HidSlickyDevice::open() {
         Ok(dev) => {
             log::info!("Slicky device found at startup");
             *state.inner.device.lock().await = Some(dev);
@@ -52,9 +52,9 @@ async fn main() -> Result<()> {
     }
 
     // Load config.
-    let config = slicky_core::Config::load().unwrap_or_else(|e| {
+    let config = statuslight_core::Config::load().unwrap_or_else(|e| {
         log::warn!("Failed to load config, using defaults: {e}");
-        slicky_core::Config::default()
+        statuslight_core::Config::default()
     });
 
     // Configure Slack state from config (CLI arg overrides config for app_token).

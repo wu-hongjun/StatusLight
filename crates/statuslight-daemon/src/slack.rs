@@ -6,7 +6,9 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
-use slicky_core::{AnimationType, Color, HidSlickyDevice, Preset, SlackRule, SlickyDevice};
+use statuslight_core::{
+    AnimationType, Color, HidSlickyDevice, Preset, SlackRule, StatusLightDevice,
+};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::state::AppState;

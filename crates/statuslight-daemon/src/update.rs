@@ -2,9 +2,9 @@
 
 use chrono::Utc;
 use semver::Version;
-use slicky_core::Config;
+use statuslight_core::Config;
 
-const RELEASES_URL: &str = "https://api.github.com/repos/wu-hongjun/OpenSilcky/releases/latest";
+const RELEASES_URL: &str = "https://api.github.com/repos/wu-hongjun/StatusLight/releases/latest";
 
 /// Spawn a non-blocking update check if `auto_check` is enabled and
 /// at least 24 hours have passed since the last check.
@@ -37,7 +37,7 @@ async fn check_once() -> anyhow::Result<()> {
     let resp = client
         .get(RELEASES_URL)
         .header("Accept", "application/vnd.github.v3+json")
-        .header("User-Agent", "openslicky-daemon")
+        .header("User-Agent", "statuslight-daemon")
         .send()
         .await?;
 
@@ -56,7 +56,7 @@ async fn check_once() -> anyhow::Result<()> {
         if latest > current {
             log::info!(
                 "New version available: {latest} (current: {current}). \
-                 Download: https://github.com/wu-hongjun/OpenSilcky/releases/tag/v{latest}"
+                 Download: https://github.com/wu-hongjun/StatusLight/releases/tag/v{latest}"
             );
         }
     }
