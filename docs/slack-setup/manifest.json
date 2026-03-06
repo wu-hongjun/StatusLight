@@ -1,0 +1,39 @@
+{
+  "display_information": {
+    "name": "Status Light",
+    "description": "USB status light controller"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Status Light",
+      "always_online": false
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "user": [
+        "users.profile:read",
+        "users.profile:write",
+        "im:read",
+        "im:history"
+      ],
+      "bot": [
+        "im:read",
+        "im:history"
+      ]
+    }
+  },
+  "settings": {
+    "socket_mode_enabled": true,
+    "event_subscriptions": {
+      "user_events": [
+        "message.im"
+      ],
+      "bot_events": [
+        "app_mention"
+      ]
+    },
+    "org_deploy_enabled": false,
+    "token_rotation_enabled": false
+  }
+}

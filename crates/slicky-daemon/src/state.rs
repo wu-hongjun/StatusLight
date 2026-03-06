@@ -1,9 +1,10 @@
 //! Shared application state for the Slicky daemon.
 
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use slicky_core::{Color, HidSlickyDevice};
+use slicky_core::{Color, HidSlickyDevice, SlackRule};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -22,20 +23,30 @@ pub struct AppStateInner {
     pub current_color: Mutex<Option<Color>>,
     /// Slack integration state.
     pub slack: Mutex<SlackState>,
+    /// When true, the emoji poller should not overwrite the device color.
+    pub event_animation_active: AtomicBool,
+    /// Handle to the currently running event animation task, if any.
+    pub event_animation_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
-/// Slack polling configuration and runtime state.
+/// Slack configuration and runtime state.
 pub struct SlackState {
-    /// Whether Slack polling is active.
+    /// Whether Slack integration is active.
     pub enabled: bool,
-    /// The Slack user token (`xoxp-...`).
-    pub token: Option<String>,
-    /// Polling interval in seconds (default 30).
-    pub poll_interval_secs: u64,
-    /// Mapping of Slack status emoji to device colors.
-    pub emoji_map: HashMap<String, Color>,
-    /// Handle to the background polling task, if running.
-    pub poll_handle: Option<JoinHandle<()>>,
+    /// App-level token (`xapp-...`) for Socket Mode.
+    pub app_token: Option<String>,
+    /// Bot token (`xoxb-...`) for API calls.
+    pub bot_token: Option<String>,
+    /// User token (`xoxp-...`) for profile read/write.
+    pub user_token: Option<String>,
+    /// Emoji-to-color mappings (emoji → hex color string).
+    pub emoji_colors: HashMap<String, String>,
+    /// Event-driven animation rules.
+    pub rules: Vec<SlackRule>,
+    /// Handle to the Socket Mode WebSocket task, if running.
+    pub socket_handle: Option<JoinHandle<()>>,
+    /// Handle to the background emoji polling task, if running.
+    pub emoji_poll_handle: Option<JoinHandle<()>>,
 }
 
 impl AppState {
@@ -47,11 +58,16 @@ impl AppState {
                 current_color: Mutex::new(None),
                 slack: Mutex::new(SlackState {
                     enabled: false,
-                    token: None,
-                    poll_interval_secs: 30,
-                    emoji_map: HashMap::new(),
-                    poll_handle: None,
+                    app_token: None,
+                    bot_token: None,
+                    user_token: None,
+                    emoji_colors: HashMap::new(),
+                    rules: Vec::new(),
+                    socket_handle: None,
+                    emoji_poll_handle: None,
                 }),
+                event_animation_active: AtomicBool::new(false),
+                event_animation_handle: Mutex::new(None),
             }),
         }
     }

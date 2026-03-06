@@ -36,6 +36,7 @@ nav:
   - Getting Started:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quickstart.md
+      - Slack Setup: slack-setup/index.md
   - Reference:
       - CLI: reference/cli.md
       - Daemon API: reference/daemon-api.md

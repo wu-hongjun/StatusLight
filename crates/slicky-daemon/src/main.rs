@@ -22,13 +22,9 @@ struct Args {
     #[arg(long, default_value = "/tmp/slicky.sock")]
     socket: PathBuf,
 
-    /// Slack user token for automatic status sync.
+    /// Slack app-level token for Socket Mode (overrides config).
     #[arg(long)]
-    slack_token: Option<String>,
-
-    /// Slack polling interval in seconds (default: from config or 30).
-    #[arg(long)]
-    slack_interval: Option<u64>,
+    slack_app_token: Option<String>,
 }
 
 #[tokio::main]
@@ -55,27 +51,43 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Load config for token fallback and update check.
+    // Load config.
     let config = slicky_core::Config::load().unwrap_or_else(|e| {
         log::warn!("Failed to load config, using defaults: {e}");
         slicky_core::Config::default()
     });
 
-    // Token priority: CLI arg > config file.
-    let slack_token = args.slack_token.or(config.slack.token);
-    let poll_interval = args
-        .slack_interval
-        .unwrap_or(config.slack.poll_interval_secs);
+    // Configure Slack state from config (CLI arg overrides config for app_token).
+    let app_token = args.slack_app_token.or(config.slack.app_token);
+    let bot_token = config.slack.bot_token;
+    let user_token = config.slack.user_token;
 
-    // Configure Slack if a token is available.
-    if let Some(token) = slack_token {
+    // Build emoji_colors map — config stores hex strings directly.
+    let emoji_colors = config.slack.emoji_colors;
+
+    {
         let mut slack_state = state.inner.slack.lock().await;
-        slack_state.token = Some(token);
-        slack_state.poll_interval_secs = poll_interval;
-        slack_state.emoji_map = slack::default_emoji_map();
-        drop(slack_state);
-        slack::start_polling(&state).await;
-        log::info!("Slack sync enabled (polling every {poll_interval}s)");
+        slack_state.app_token = app_token.clone();
+        slack_state.bot_token = bot_token;
+        slack_state.user_token = user_token.clone();
+        slack_state.emoji_colors = emoji_colors;
+        slack_state.rules = config.slack.rules;
+    }
+
+    // Start Slack tasks based on available tokens.
+    let has_app = app_token.is_some();
+    let has_user = user_token.is_some();
+
+    if has_app {
+        slack::start_socket_mode(&state).await;
+        log::info!("Socket Mode enabled");
+    }
+    if has_user {
+        slack::start_emoji_poll(&state).await;
+        log::info!("Emoji status polling enabled (60s interval)");
+    }
+    if has_app || has_user {
+        state.inner.slack.lock().await.enabled = true;
     }
 
     // Spawn a non-blocking update check on startup.
@@ -106,8 +118,8 @@ async fn main() -> Result<()> {
     // Clean up socket file.
     let _ = std::fs::remove_file(&args.socket);
 
-    // Stop Slack polling.
-    slack::stop_polling(&state).await;
+    // Stop all Slack tasks.
+    slack::stop_all(&state).await;
 
     log::info!("Daemon stopped");
     Ok(())

@@ -79,57 +79,78 @@ enum Commands {
 enum AnimateAction {
     /// Smooth sine-wave breathing effect
     Breathing {
-        /// Base color name or hex (default: white)
-        #[arg(long, default_value = "white")]
-        color: String,
+        /// Color name(s) or hex (repeatable, default: white)
+        #[arg(long)]
+        color: Vec<String>,
         /// Speed multiplier (default: 1.0)
         #[arg(long, default_value = "1.0")]
         speed: f64,
+        /// Brightness cap (0.0–1.0, default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        brightness: f64,
     },
     /// Hard on/off blink
     Flash {
-        /// Base color name or hex (default: red)
-        #[arg(long, default_value = "red")]
-        color: String,
+        /// Color name(s) or hex (repeatable, default: red)
+        #[arg(long)]
+        color: Vec<String>,
         /// Speed multiplier (default: 1.0)
         #[arg(long, default_value = "1.0")]
         speed: f64,
+        /// Brightness cap (0.0–1.0, default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        brightness: f64,
     },
     /// Morse code SOS pattern
     Sos {
-        /// Base color name or hex (default: white)
-        #[arg(long, default_value = "white")]
-        color: String,
+        /// Color name(s) or hex (repeatable, default: white)
+        #[arg(long)]
+        color: Vec<String>,
         /// Speed multiplier (default: 1.0)
         #[arg(long, default_value = "1.0")]
         speed: f64,
+        /// Brightness cap (0.0–1.0, default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        brightness: f64,
     },
     /// Sharp rise then exponential decay
     Pulse {
-        /// Base color name or hex (default: white)
-        #[arg(long, default_value = "white")]
-        color: String,
+        /// Color name(s) or hex (repeatable, default: white)
+        #[arg(long)]
+        color: Vec<String>,
         /// Speed multiplier (default: 1.0)
         #[arg(long, default_value = "1.0")]
         speed: f64,
+        /// Brightness cap (0.0–1.0, default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        brightness: f64,
     },
-    /// Cycle through the full hue spectrum
+    /// Cycle through the full hue spectrum (or cycle through specified colors)
     Rainbow {
+        /// Color name(s) or hex (repeatable; omit for full spectrum)
+        #[arg(long)]
+        color: Vec<String>,
         /// Speed multiplier (default: 1.0)
         #[arg(long, default_value = "1.0")]
         speed: f64,
+        /// Brightness cap (0.0–1.0, default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        brightness: f64,
     },
-    /// Smooth transition between two colors
+    /// Smooth transition between colors
     Transition {
-        /// First color name or hex
-        #[arg(long, default_value = "red")]
-        color: String,
-        /// Second color name or hex
-        #[arg(long, default_value = "blue")]
-        color2: String,
+        /// Color name(s) or hex (repeatable, default: red↔blue)
+        #[arg(long)]
+        color: Vec<String>,
+        /// Second color (backward compat, appended to color list)
+        #[arg(long)]
+        color2: Option<String>,
         /// Speed multiplier (default: 1.0)
         #[arg(long, default_value = "1.0")]
         speed: f64,
+        /// Brightness cap (0.0–1.0, default: 1.0)
+        #[arg(long, default_value = "1.0")]
+        brightness: f64,
     },
 }
 
@@ -185,10 +206,24 @@ enum PresetAction {
 
 #[derive(Subcommand)]
 enum SlackAction {
-    /// Log in to Slack via OAuth
-    Login,
-    /// Remove saved Slack credentials
-    Logout,
+    /// Set up Slack integration (guided wizard, auto-opens browser)
+    Setup,
+    /// Open browser with pre-filled Slack app manifest (non-interactive)
+    OpenSetup,
+    /// Non-interactive token configuration (for macOS app)
+    Configure {
+        /// App-level token (xapp-...)
+        #[arg(long)]
+        app_token: String,
+        /// Bot token (xoxb-...)
+        #[arg(long)]
+        bot_token: String,
+        /// User token (xoxp-...)
+        #[arg(long)]
+        user_token: String,
+    },
+    /// Remove Slack credentials
+    Disconnect,
     /// Show Slack connection status
     Status,
     /// Set your Slack status text and emoji
@@ -255,7 +290,7 @@ fn main() -> Result<()> {
                     if let Some(ref anim_name) = cp.animation {
                         let anim = AnimationType::from_name(anim_name)
                             .ok_or_else(|| anyhow::anyhow!("unknown animation: {anim_name}"))?;
-                        animate::run(anim, color, Color::off(), cp.speed)?;
+                        animate::run(anim, &[color], cp.speed, 1.0)?;
                     } else {
                         let device = DeviceProxy::open()?;
                         device.set_color(color).context("failed to set color")?;
@@ -324,46 +359,71 @@ fn main() -> Result<()> {
             }
         }
         Commands::Animate { action } => {
-            let (anim_type, color, color2, speed) = match action {
-                AnimateAction::Breathing { color, speed } => (
-                    AnimationType::Breathing,
-                    parse_color(&color)?,
-                    Color::off(),
-                    speed,
-                ),
-                AnimateAction::Flash { color, speed } => (
-                    AnimationType::Flash,
-                    parse_color(&color)?,
-                    Color::off(),
-                    speed,
-                ),
-                AnimateAction::Sos { color, speed } => (
-                    AnimationType::Sos,
-                    parse_color(&color)?,
-                    Color::off(),
-                    speed,
-                ),
-                AnimateAction::Pulse { color, speed } => (
-                    AnimationType::Pulse,
-                    parse_color(&color)?,
-                    Color::off(),
-                    speed,
-                ),
-                AnimateAction::Rainbow { speed } => {
-                    (AnimationType::Rainbow, Color::off(), Color::off(), speed)
-                }
-                AnimateAction::Transition {
+            let (anim_type, colors, speed, brightness) = match action {
+                AnimateAction::Breathing {
                     color,
+                    speed,
+                    brightness,
+                } => (
+                    AnimationType::Breathing,
+                    parse_colors(&color)?,
+                    speed,
+                    brightness,
+                ),
+                AnimateAction::Flash {
+                    color,
+                    speed,
+                    brightness,
+                } => (
+                    AnimationType::Flash,
+                    parse_colors(&color)?,
+                    speed,
+                    brightness,
+                ),
+                AnimateAction::Sos {
+                    color,
+                    speed,
+                    brightness,
+                } => (AnimationType::Sos, parse_colors(&color)?, speed, brightness),
+                AnimateAction::Pulse {
+                    color,
+                    speed,
+                    brightness,
+                } => (
+                    AnimationType::Pulse,
+                    parse_colors(&color)?,
+                    speed,
+                    brightness,
+                ),
+                AnimateAction::Rainbow {
+                    color,
+                    speed,
+                    brightness,
+                } => (
+                    AnimationType::Rainbow,
+                    parse_colors(&color)?,
+                    speed,
+                    brightness,
+                ),
+                AnimateAction::Transition {
+                    mut color,
                     color2,
                     speed,
-                } => (
-                    AnimationType::Transition,
-                    parse_color(&color)?,
-                    parse_color(&color2)?,
-                    speed,
-                ),
+                    brightness,
+                } => {
+                    // Backward compat: append --color2 to the list
+                    if let Some(c2) = color2 {
+                        color.push(c2);
+                    }
+                    (
+                        AnimationType::Transition,
+                        parse_colors(&color)?,
+                        speed,
+                        brightness,
+                    )
+                }
             };
-            animate::run(anim_type, color, color2, speed)?;
+            animate::run(anim_type, &colors, speed, brightness)?;
         }
         Commands::Color { action } => match action {
             ColorAction::Override { name, hex } => color_cmd::override_color(&name, &hex)?,
@@ -395,8 +455,14 @@ fn main() -> Result<()> {
             }
         },
         Commands::Slack { action } => match action {
-            SlackAction::Login => slack::login()?,
-            SlackAction::Logout => slack::logout()?,
+            SlackAction::Setup => slack::setup()?,
+            SlackAction::OpenSetup => slack::open_setup()?,
+            SlackAction::Configure {
+                app_token,
+                bot_token,
+                user_token,
+            } => slack::configure(&app_token, &bot_token, &user_token)?,
+            SlackAction::Disconnect => slack::disconnect()?,
             SlackAction::Status => slack::status()?,
             SlackAction::SetStatus { text, emoji } => slack::set_status(&text, &emoji)?,
             SlackAction::ClearStatus => slack::clear_status()?,
@@ -418,7 +484,10 @@ fn main() -> Result<()> {
             }
 
             let config = Config::load()?;
-            if config.slack.token.is_some() {
+            let slack_connected = config.slack.app_token.is_some()
+                || config.slack.bot_token.is_some()
+                || config.slack.user_token.is_some();
+            if slack_connected {
                 println!("Slack:   configured");
             } else {
                 println!("Slack:   not configured");
@@ -437,6 +506,11 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Parse a list of color strings into a `Vec<Color>`.
+fn parse_colors(strings: &[String]) -> Result<Vec<Color>> {
+    strings.iter().map(|s| parse_color(s)).collect()
 }
 
 /// Parse a color string that can be either a preset name or a hex value.

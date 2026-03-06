@@ -103,6 +103,13 @@ final class ViewModel: ObservableObject {
     @Published var selectedAnimationType = "breathing"
     @Published var animationSpeed: Double = 1.0
 
+    // Intensity (brightness cap)
+    @Published var intensity: Double = 1.0 {
+        didSet {
+            UserDefaults.standard.set(intensity, forKey: "lightIntensity")
+        }
+    }
+
     // Color picker state
     @Published var pickerColor = Color.white
 
@@ -115,6 +122,8 @@ final class ViewModel: ObservableObject {
     init() {
         _showInDock = Published(initialValue: UserDefaults.standard.bool(forKey: "showInDock"))
         _autoSyncSlack = Published(initialValue: UserDefaults.standard.bool(forKey: "autoSyncSlack"))
+        let savedIntensity = UserDefaults.standard.double(forKey: "lightIntensity")
+        _intensity = Published(initialValue: savedIntensity > 0 ? savedIntensity : 1.0)
         isInstalled = cli.isInstalled
         startPolling()
         loadCustomPresets()
@@ -143,13 +152,20 @@ final class ViewModel: ObservableObject {
         currentPreset = name
         isCustomColorActive = false
         // Sync picker color to match the selected preset
+        let presetColor: Color
         if let customPreset = customPresets.first(where: { $0.name == name }) {
-            pickerColor = colorFromHex(customPreset.color)
+            presetColor = colorFromHex(customPreset.color)
         } else {
-            pickerColor = colorForPreset(name)
+            presetColor = colorForPreset(name)
         }
+        pickerColor = presetColor
         Task {
-            let _ = await cli.set(preset: name)
+            if intensity < 1.0 {
+                let scaledHex = presetColor.scaledHex(intensity: intensity)
+                let _ = await cli.setHex(scaledHex)
+            } else {
+                let _ = await cli.set(preset: name)
+            }
             if autoSyncSlack && slackConnected {
                 await syncSlackStatus(for: name)
             }
@@ -198,7 +214,7 @@ final class ViewModel: ObservableObject {
         stopAnimation()
         currentPreset = nil
         isCustomColorActive = true
-        let hex = pickerColor.toHex()
+        let hex = pickerColor.scaledHex(intensity: intensity)
         Task {
             let _ = await cli.setHex(hex)
         }
@@ -210,7 +226,7 @@ final class ViewModel: ObservableObject {
         stopAnimation()
         isAnimating = true
         currentPreset = nil
-        animationProcess = cli.animate(type: animType, color: color, speed: speed)
+        animationProcess = cli.animate(type: animType, color: color, speed: speed, brightness: intensity)
     }
 
     func stopAnimation() {
@@ -233,13 +249,9 @@ final class ViewModel: ObservableObject {
 
     // MARK: - Slack
 
-    func connectSlack() {
-        cli.slackLogin()
-    }
-
     func disconnectSlack() {
         Task { @MainActor in
-            let _ = await cli.slackLogout()
+            let _ = await cli.slackDisconnect()
             slackConnected = false
         }
     }
@@ -392,31 +404,14 @@ struct InstallerView: View {
 
 struct MenuBarView: View {
     @EnvironmentObject var vm: ViewModel
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 16) {
             StatusSection()
             Divider()
             ColorGridSection()
-
-            if vm.showInDock {
-                Divider()
-                Button(action: {
-                    openWindow(id: "main")
-                    NSApp.activate(ignoringOtherApps: true)
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "macwindow")
-                        Text("Open OpenSlicky\u{2026}")
-                    }
-                    .font(.caption)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
-                }
-                .buttonStyle(.bordered)
-            }
-
+            Divider()
+            IntensitySection()
             Divider()
             Text("OpenSlicky v\(vm.cli.appVersion)")
                 .font(.caption2)
@@ -445,6 +440,8 @@ struct FullWindowView: View {
                 Divider()
                 ColorPickerSection()
                 Divider()
+                IntensitySection()
+                Divider()
                 AnimationSection()
                 Divider()
                 SlackSection()
@@ -462,6 +459,7 @@ struct FullWindowView: View {
 
 struct StatusSection: View {
     @EnvironmentObject var vm: ViewModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         HStack(spacing: 8) {
@@ -509,6 +507,15 @@ struct StatusSection: View {
             .buttonStyle(.bordered)
             .controlSize(.mini)
             .disabled(!vm.isOn && !vm.canTurnOn)
+
+            Button(action: {
+                openWindow(id: "main")
+                NSApp.activate(ignoringOtherApps: true)
+            }) {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
         }
     }
 }
@@ -634,6 +641,34 @@ struct CustomPresetsSection: View {
     }
 }
 
+// MARK: - Intensity Section
+
+struct IntensitySection: View {
+    @EnvironmentObject var vm: ViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("INTENSITY")
+                .font(.caption2.bold())
+                .foregroundColor(.secondary)
+
+            HStack {
+                Image(systemName: "sun.min")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Slider(value: $vm.intensity, in: 0.05...1.0, step: 0.05)
+                Image(systemName: "sun.max")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(String(format: "%d%%", Int(vm.intensity * 100)))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 40, alignment: .trailing)
+            }
+        }
+    }
+}
+
 // MARK: - Color Picker Section
 
 struct ColorPickerSection: View {
@@ -670,7 +705,7 @@ struct ColorPickerSection: View {
 struct AnimationSection: View {
     @EnvironmentObject var vm: ViewModel
 
-    private let animationTypes = ["breathing", "flash", "sos", "pulse", "rainbow"]
+    private let animationTypes = ["breathing", "flash", "sos", "pulse", "rainbow", "transition"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -736,6 +771,7 @@ struct AnimationSection: View {
 
 struct SlackSection: View {
     @EnvironmentObject var vm: ViewModel
+    @State private var showSetupWizard = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -747,7 +783,7 @@ struct SlackSection: View {
                 Circle()
                     .fill(vm.slackConnected ? Color.green : Color.gray)
                     .frame(width: 6, height: 6)
-                Text(vm.slackConnected ? "Connected" : "Not connected")
+                Text(vm.slackConnected ? "Connected (Socket Mode)" : "Not connected")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -761,7 +797,7 @@ struct SlackSection: View {
                     .controlSize(.mini)
                 } else {
                     Button("Connect Slack") {
-                        vm.connectSlack()
+                        showSetupWizard = true
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.mini)
@@ -769,10 +805,350 @@ struct SlackSection: View {
             }
 
             if vm.slackConnected {
+                HStack(spacing: 4) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 8))
+                        .foregroundColor(.green)
+                    Text("Real-time events active")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+
                 Toggle("Auto-sync status to Slack", isOn: $vm.autoSyncSlack)
                     .font(.caption)
                     .toggleStyle(.checkbox)
                     .help("When enabled, setting a status preset also updates your Slack status")
+            }
+        }
+        .sheet(isPresented: $showSetupWizard) {
+            SlackSetupWizard(vm: vm)
+        }
+    }
+}
+
+// MARK: - Slack Setup Wizard
+
+struct SlackSetupWizard: View {
+    @ObservedObject var vm: ViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var step = 1
+    @State private var appToken = ""
+    @State private var botToken = ""
+    @State private var userToken = ""
+    @State private var isConnecting = false
+    @State private var errorMessage: String?
+    @State private var isConnected = false
+
+    private let totalSteps = 4
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Progress bar
+            VStack(spacing: 4) {
+                HStack {
+                    Text("Step \(step) of \(totalSteps)")
+                        .font(.caption.bold())
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                ProgressView(value: Double(step), total: Double(totalSteps))
+                    .tint(.accentColor)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            // Step content
+            Group {
+                switch step {
+                case 1: stepCreateApp
+                case 2: stepAppToken
+                case 3: stepInstallTokens
+                case 4: stepVerify
+                default: EmptyView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+
+            Divider()
+
+            // Navigation buttons
+            HStack {
+                if step > 1 && !isConnected {
+                    Button("Back") {
+                        errorMessage = nil
+                        step -= 1
+                    }
+                    .controlSize(.regular)
+                }
+
+                Spacer()
+
+                if isConnected {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                } else if step == totalSteps {
+                    Button(action: connect) {
+                        if isConnecting {
+                            ProgressView()
+                                .controlSize(.small)
+                                .padding(.horizontal, 12)
+                        } else {
+                            Text("Connect")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .disabled(isConnecting)
+                } else {
+                    Button("Next") {
+                        step += 1
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .disabled(!canAdvance)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+        }
+        .frame(width: 480, height: 400)
+    }
+
+    // MARK: - Step Views
+
+    private var stepCreateApp: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Create Your Slack App", systemImage: "plus.app")
+                .font(.headline)
+
+            Text("Click the button below to open Slack with a pre-filled app configuration. Select your workspace, review the permissions, and click **Create**.")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer()
+
+            HStack {
+                Spacer()
+                Button(action: {
+                    Task {
+                        let _ = await vm.cli.openSlackAppCreation()
+                    }
+                }) {
+                    Label("Create Slack App", systemImage: "safari")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                Spacer()
+            }
+
+            Spacer()
+        }
+    }
+
+    private var stepAppToken: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Generate App Token", systemImage: "key")
+                .font(.headline)
+
+            Text("In your app settings:")
+                .font(.callout)
+                .foregroundColor(.secondary)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("1. Go to **Basic Information** > **App-Level Tokens**")
+                Text("2. Click **Generate Token and Scopes**")
+                Text("3. Name it anything, add scope: **connections:write**")
+                Text("4. Click **Generate** and copy the token")
+            }
+            .font(.callout)
+            .foregroundColor(.secondary)
+
+            Spacer()
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("App-Level Token")
+                    .font(.caption.bold())
+                    .foregroundColor(.secondary)
+                TextField("xapp-...", text: $appToken)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                if !appToken.isEmpty && !appToken.hasPrefix("xapp-") {
+                    Text("Token must start with xapp-")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+            }
+
+            Spacer()
+        }
+    }
+
+    private var stepInstallTokens: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Install & Copy Tokens", systemImage: "arrow.down.app")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("1. Go to **Install App** in your app settings")
+                Text("2. Click **Install to Workspace** and authorize")
+                Text("3. Copy both tokens below")
+            }
+            .font(.callout)
+            .foregroundColor(.secondary)
+
+            Spacer()
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Bot Token")
+                    .font(.caption.bold())
+                    .foregroundColor(.secondary)
+                TextField("xoxb-...", text: $botToken)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                if !botToken.isEmpty && !botToken.hasPrefix("xoxb-") {
+                    Text("Token must start with xoxb-")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("User Token")
+                    .font(.caption.bold())
+                    .foregroundColor(.secondary)
+                TextField("xoxp-...", text: $userToken)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                if !userToken.isEmpty && !userToken.hasPrefix("xoxp-") {
+                    Text("Token must start with xoxp-")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+            }
+
+            Spacer()
+        }
+    }
+
+    private var stepVerify: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if isConnected {
+                Spacer()
+                HStack {
+                    Spacer()
+                    VStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.green)
+                        Text("Slack Connected!")
+                            .font(.title3.bold())
+                        Text("Restart the daemon to enable Socket Mode events.")
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    Spacer()
+                }
+                Spacer()
+            } else {
+                Label("Verify & Connect", systemImage: "checkmark.shield")
+                    .font(.headline)
+
+                Text("Ready to validate your tokens and connect to Slack.")
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    tokenSummaryRow("App Token", token: appToken, prefix: "xapp-")
+                    tokenSummaryRow("Bot Token", token: botToken, prefix: "xoxb-")
+                    tokenSummaryRow("User Token", token: userToken, prefix: "xoxp-")
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.gray.opacity(0.1)))
+
+                if let error = errorMessage {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                        Text(error)
+                            .font(.callout)
+                            .foregroundColor(.red)
+                    }
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.red.opacity(0.1)))
+                }
+
+                Spacer()
+            }
+        }
+    }
+
+    private func tokenSummaryRow(_ label: String, token: String, prefix: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.caption.bold())
+                .frame(width: 80, alignment: .leading)
+            if token.hasPrefix(prefix) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                    .font(.caption)
+                Text(String(token.prefix(12)) + "...")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.secondary)
+            } else {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.red)
+                    .font(.caption)
+                Text("Invalid prefix")
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
+        }
+    }
+
+    // MARK: - Logic
+
+    private var canAdvance: Bool {
+        switch step {
+        case 1:
+            return true
+        case 2:
+            return appToken.hasPrefix("xapp-")
+        case 3:
+            return botToken.hasPrefix("xoxb-") && userToken.hasPrefix("xoxp-")
+        default:
+            return true
+        }
+    }
+
+    private func connect() {
+        isConnecting = true
+        errorMessage = nil
+        Task {
+            let (output, ok) = await vm.cli.configureSlack(
+                appToken: appToken,
+                botToken: botToken,
+                userToken: userToken
+            )
+            await MainActor.run {
+                isConnecting = false
+                if ok {
+                    isConnected = true
+                    vm.slackConnected = true
+                } else {
+                    let msg = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                    errorMessage = msg.isEmpty ? "Connection failed" : msg
+                }
             }
         }
     }
@@ -878,6 +1254,18 @@ extension Color {
         let r = Int(round(components.redComponent * 255))
         let g = Int(round(components.greenComponent * 255))
         let b = Int(round(components.blueComponent * 255))
+        return String(format: "#%02X%02X%02X", r, g, b)
+    }
+
+    /// Convert to hex with brightness scaled by intensity (0.0–1.0).
+    func scaledHex(intensity: Double) -> String {
+        guard let components = NSColor(self).usingColorSpace(.deviceRGB) else {
+            return "#000000"
+        }
+        let factor = max(0, min(1, intensity))
+        let r = Int(round(components.redComponent * 255 * factor))
+        let g = Int(round(components.greenComponent * 255 * factor))
+        let b = Int(round(components.blueComponent * 255 * factor))
         return String(format: "#%02X%02X%02X", r, g, b)
     }
 }

@@ -12,6 +12,6 @@ pub mod protocol;
 
 pub use animation::AnimationType;
 pub use color::{Color, Preset};
-pub use config::{Config, CustomPreset};
+pub use config::{Config, CustomPreset, SlackRule};
 pub use device::{DeviceInfo, HidSlickyDevice, SlickyDevice};
 pub use error::{Result, SlickyError};

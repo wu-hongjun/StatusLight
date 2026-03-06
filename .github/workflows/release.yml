@@ -22,9 +22,6 @@ jobs:
         run: brew install hidapi create-dmg
 
       - name: Build
-        env:
-          SLACK_CLIENT_ID: ${{ secrets.SLACK_CLIENT_ID }}
-          SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
         run: cargo build --workspace --release
 
       - name: Build .app bundle and DMG

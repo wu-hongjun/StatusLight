@@ -94,22 +94,25 @@ struct ErrorResponse {
 #[derive(Serialize)]
 struct SlackStatusResponse {
     enabled: bool,
-    poll_interval_secs: u64,
-    has_token: bool,
+    has_app_token: bool,
+    has_bot_token: bool,
+    has_user_token: bool,
+    socket_connected: bool,
+    rules_count: usize,
     emoji_map: std::collections::HashMap<String, String>,
 }
 
 #[derive(Deserialize)]
 struct SlackConfigureRequest {
-    token: Option<String>,
-    poll_interval_secs: Option<u64>,
-    emoji_map: Option<std::collections::HashMap<String, String>>,
+    app_token: Option<String>,
+    bot_token: Option<String>,
+    user_token: Option<String>,
+    emoji_colors: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Serialize)]
 struct SlackConfigureResponse {
     enabled: bool,
-    poll_interval_secs: u64,
 }
 
 #[derive(Serialize)]
@@ -255,16 +258,14 @@ async fn get_devices() -> Result<Json<Vec<DeviceEntry>>, (StatusCode, Json<Error
 
 async fn get_slack_status(State(state): State<AppState>) -> impl IntoResponse {
     let slack = state.inner.slack.lock().await;
-    let emoji_map: std::collections::HashMap<String, String> = slack
-        .emoji_map
-        .iter()
-        .map(|(k, v)| (k.clone(), v.to_hex()))
-        .collect();
     Json(SlackStatusResponse {
         enabled: slack.enabled,
-        poll_interval_secs: slack.poll_interval_secs,
-        has_token: slack.token.is_some(),
-        emoji_map,
+        has_app_token: slack.app_token.is_some(),
+        has_bot_token: slack.bot_token.is_some(),
+        has_user_token: slack.user_token.is_some(),
+        socket_connected: slack.socket_handle.is_some(),
+        rules_count: slack.rules.len(),
+        emoji_map: slack.emoji_colors.clone(),
     })
 }
 
@@ -272,33 +273,52 @@ async fn post_slack_configure(
     State(state): State<AppState>,
     Json(req): Json<SlackConfigureRequest>,
 ) -> Result<Json<SlackConfigureResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let mut slack = state.inner.slack.lock().await;
+    let mut slack_state = state.inner.slack.lock().await;
 
-    if let Some(token) = req.token {
-        slack.token = Some(token);
+    if let Some(token) = req.app_token {
+        slack_state.app_token = Some(token);
     }
-    if let Some(interval) = req.poll_interval_secs {
-        slack.poll_interval_secs = interval;
+    if let Some(token) = req.bot_token {
+        slack_state.bot_token = Some(token);
     }
-    if let Some(emoji_map) = req.emoji_map {
-        let mut map = std::collections::HashMap::new();
-        for (emoji, color_str) in emoji_map {
-            let color = Color::from_hex(&color_str).map_err(map_slicky_error)?;
-            map.insert(emoji, color);
+    if let Some(token) = req.user_token {
+        slack_state.user_token = Some(token);
+    }
+    if let Some(emoji_colors) = req.emoji_colors {
+        // Validate all hex values before accepting.
+        for (emoji, hex) in &emoji_colors {
+            Color::from_hex(hex).map_err(|_| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        error: format!("invalid hex color for {emoji}: {hex}"),
+                    }),
+                )
+            })?;
         }
-        slack.emoji_map = map;
+        slack_state.emoji_colors = emoji_colors;
     }
 
     let response = SlackConfigureResponse {
-        enabled: slack.enabled,
-        poll_interval_secs: slack.poll_interval_secs,
+        enabled: slack_state.enabled,
     };
 
-    // If polling was already running, restart with new config.
-    if slack.enabled {
-        drop(slack);
-        slack::stop_polling(&state).await;
-        slack::start_polling(&state).await;
+    // If already running, restart with new config.
+    if slack_state.enabled {
+        drop(slack_state);
+        slack::stop_all(&state).await;
+        // Re-start based on available tokens.
+        let slack_state = state.inner.slack.lock().await;
+        let has_app = slack_state.app_token.is_some();
+        let has_user = slack_state.user_token.is_some();
+        drop(slack_state);
+        if has_app {
+            slack::start_socket_mode(&state).await;
+        }
+        if has_user {
+            slack::start_emoji_poll(&state).await;
+        }
+        state.inner.slack.lock().await.enabled = true;
     }
 
     Ok(Json(response))
@@ -307,21 +327,32 @@ async fn post_slack_configure(
 async fn post_slack_enable(
     State(state): State<AppState>,
 ) -> Result<Json<SlackEnableResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let has_token = state.inner.slack.lock().await.token.is_some();
-    if !has_token {
+    let slack_state = state.inner.slack.lock().await;
+    let has_app = slack_state.app_token.is_some();
+    let has_user = slack_state.user_token.is_some();
+    drop(slack_state);
+
+    if !has_app && !has_user {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
-                error: "no Slack token configured".to_string(),
+                error: "no Slack tokens configured".to_string(),
             }),
         ));
     }
 
-    slack::start_polling(&state).await;
+    if has_app {
+        slack::start_socket_mode(&state).await;
+    }
+    if has_user {
+        slack::start_emoji_poll(&state).await;
+    }
+    state.inner.slack.lock().await.enabled = true;
+
     Ok(Json(SlackEnableResponse { enabled: true }))
 }
 
 async fn post_slack_disable(State(state): State<AppState>) -> impl IntoResponse {
-    slack::stop_polling(&state).await;
+    slack::stop_all(&state).await;
     Json(SlackEnableResponse { enabled: false })
 }

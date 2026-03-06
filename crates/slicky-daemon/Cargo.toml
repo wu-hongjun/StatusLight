@@ -22,3 +22,5 @@ log = { workspace = true }
 clap = { workspace = true }
 semver = { workspace = true }
 chrono = { workspace = true }
+tokio-tungstenite = { workspace = true }
+futures-util = { workspace = true }

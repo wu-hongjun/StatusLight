@@ -14,7 +14,10 @@ use slicky_core::{AnimationType, Color};
 const FRAME_INTERVAL: Duration = Duration::from_millis(33);
 
 /// Run a blocking animation loop until interrupted.
-pub fn run(animation: AnimationType, color: Color, color2: Color, speed: f64) -> Result<()> {
+///
+/// `brightness` acts as a cap on output (0.0–1.0). At 0.5, peak brightness
+/// is halved; at 1.0 (default), output is unchanged.
+pub fn run(animation: AnimationType, colors: &[Color], speed: f64, brightness: f64) -> Result<()> {
     let device = crate::daemon_client::DeviceProxy::open()?;
 
     let running = Arc::new(AtomicBool::new(true));
@@ -34,7 +37,8 @@ pub fn run(animation: AnimationType, color: Color, color2: Color, speed: f64) ->
 
     while running.load(Ordering::SeqCst) {
         let elapsed = start.elapsed().as_secs_f64();
-        let frame_color = animation.frame(elapsed, speed, color, color2);
+        let frame_color = animation.frame(elapsed, speed, colors);
+        let frame_color = frame_color.scale_brightness(brightness);
         device
             .set_color(frame_color)
             .context("failed to write frame")?;

@@ -1,102 +1,258 @@
-//! Slack OAuth login/logout/status for the CLI.
+//! Slack setup/disconnect/status for the CLI.
+//!
+//! Uses a per-user Slack app model: users create their own app from a manifest
+//! and paste three tokens (app, bot, user) via a guided wizard.
 
-use std::io::{BufRead, BufReader, Write};
-use std::net::TcpListener;
+use std::io::{self, Write};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use slicky_core::Config;
 
-const SLACK_CLIENT_ID: &str = env!("SLACK_CLIENT_ID");
-const SLACK_CLIENT_SECRET: &str = env!("SLACK_CLIENT_SECRET");
+const HEX_CHARS: [u8; 16] = *b"0123456789ABCDEF";
 
-const REDIRECT_PORT: u16 = 19876;
-const REDIRECT_URI: &str = "http://127.0.0.1:19876/callback";
-
-/// `slicky slack login` — open browser for OAuth, exchange code for token.
-pub fn login() -> Result<()> {
-    let mut config = Config::load()?;
-
-    if config.slack.token.is_some() {
-        println!("Already logged in. Run `slicky slack logout` first to re-authenticate.");
-        return Ok(());
+/// Percent-encode a string per RFC 3986 (unreserved chars pass through).
+fn percent_encode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
+            _ => {
+                out.push('%');
+                out.push(char::from(HEX_CHARS[(b >> 4) as usize]));
+                out.push(char::from(HEX_CHARS[(b & 0x0F) as usize]));
+            }
+        }
     }
+    out
+}
 
-    // Bind listener before opening browser so we fail fast if port is taken.
-    let listener = TcpListener::bind(("127.0.0.1", REDIRECT_PORT))
-        .context("failed to bind callback listener (is port 19876 in use?)")?;
+/// Build the Slack app-creation URL with the manifest pre-filled.
+fn manifest_url() -> String {
+    let manifest = serde_json::json!({
+        "display_information": {
+            "name": "Status Light",
+            "description": "USB status light controller"
+        },
+        "features": {
+            "bot_user": {
+                "display_name": "Status Light",
+                "always_online": false
+            }
+        },
+        "oauth_config": {
+            "scopes": {
+                "user": [
+                    "users.profile:read",
+                    "users.profile:write",
+                    "im:read",
+                    "im:history"
+                ],
+                "bot": [
+                    "im:read",
+                    "im:history"
+                ]
+            }
+        },
+        "settings": {
+            "socket_mode_enabled": true,
+            "event_subscriptions": {
+                "user_events": ["message.im"],
+                "bot_events": ["app_mention"]
+            },
+            "org_deploy_enabled": false,
+            "token_rotation_enabled": false
+        }
+    });
+    let encoded = percent_encode(&manifest.to_string());
+    format!("https://api.slack.com/apps?new_app=1&manifest_json={encoded}")
+}
 
-    let auth_url = format!(
-        "https://slack.com/oauth/v2/authorize?client_id={}&user_scope=users.profile:read,users.profile:write&redirect_uri={}",
-        SLACK_CLIENT_ID, REDIRECT_URI
-    );
-
-    println!("Opening browser for Slack authorization...");
-    open::that(&auth_url).context("failed to open browser")?;
-    println!("Waiting for Slack callback on port {REDIRECT_PORT}...");
-
-    // Accept exactly one connection.
-    let (mut stream, _) = listener.accept().context("failed to accept callback")?;
-
-    // Read the HTTP request line to extract the code.
-    let reader = BufReader::new(&stream);
-    let request_line = reader
-        .lines()
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("empty request"))?
-        .context("failed to read request line")?;
-
-    let code = extract_code(&request_line)?;
-
-    // Send success response to browser before exchanging the code.
-    let html = "<html><body><h2>Success!</h2><p>You can close this tab and return to your terminal.</p></body></html>";
-    let response = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-        html.len(),
-        html
-    );
-    let _ = stream.write_all(response.as_bytes());
-
-    // Exchange authorization code for token.
-    println!("Exchanging code for token...");
-    let token = exchange_code(&code)?;
-
-    config.slack.token = Some(token);
-    config.save()?;
-
-    println!("Slack login successful! Token saved to config.");
+/// Prompt the user to press Enter to continue (accepts empty input).
+fn prompt_continue(msg: &str) -> Result<()> {
+    print!("{msg}");
+    io::stdout().flush()?;
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
     Ok(())
 }
 
-/// `slicky slack logout` — remove token from config.
-pub fn logout() -> Result<()> {
+/// `slicky slack open-setup` — open browser with pre-filled manifest (non-interactive).
+pub fn open_setup() -> Result<()> {
+    let url = manifest_url();
+    open::that(&url).context("failed to open browser")?;
+    Ok(())
+}
+
+/// `slicky slack configure` — non-interactive token setup (for macOS app).
+///
+/// Validates tokens and saves to config. Prints JSON result for machine parsing.
+pub fn configure(app_token: &str, bot_token: &str, user_token: &str) -> Result<()> {
+    ensure!(
+        app_token.starts_with("xapp-"),
+        "Expected xapp- prefix for app-level token"
+    );
+    ensure!(
+        bot_token.starts_with("xoxb-"),
+        "Expected xoxb- prefix for bot token"
+    );
+    ensure!(
+        user_token.starts_with("xoxp-"),
+        "Expected xoxp- prefix for user token"
+    );
+
+    validate_token(bot_token, "bot")?;
+    validate_token(user_token, "user")?;
+    validate_app_token(app_token)?;
+
+    save_tokens(app_token, bot_token, user_token)?;
+
+    println!("{{\"status\":\"configured\"}}");
+    Ok(())
+}
+
+/// `slicky slack setup` — guided wizard to configure Slack tokens.
+pub fn setup() -> Result<()> {
+    println!("=== Status Light — Slack Setup ===\n");
+
+    // Step 1: Open browser with pre-filled manifest.
+    println!("Step 1: Create your Slack app");
+    println!("  Opening Slack with a pre-filled app manifest...");
+    let url = manifest_url();
+    if open::that(&url).is_err() {
+        println!("  Could not open browser. Visit this URL manually:");
+        println!("  {url}");
+    }
+    println!();
+    println!("  Select your workspace, review the permissions, and click Create.");
+    prompt_continue("  Press Enter when done... ")?;
+
+    // Step 2: App-level token.
+    println!("\nStep 2: Generate an App-Level Token");
+    println!("  In your app settings: Basic Information > App-Level Tokens");
+    println!("  Click 'Generate Token and Scopes', add scope: connections:write");
+    let app_token = prompt("  App-Level Token (xapp-...): ")?;
+    ensure!(
+        app_token.starts_with("xapp-"),
+        "Expected xapp- prefix for app-level token"
+    );
+
+    // Step 3: Install and copy bot + user tokens.
+    println!("\nStep 3: Install the app and copy tokens");
+    println!("  Go to Install App > Install to Workspace");
+    println!("  Then copy both tokens from the Install App page.");
+    let bot_token = prompt("  Bot Token (xoxb-...): ")?;
+    ensure!(
+        bot_token.starts_with("xoxb-"),
+        "Expected xoxb- prefix for bot token"
+    );
+    let user_token = prompt("  User Token (xoxp-...): ")?;
+    ensure!(
+        user_token.starts_with("xoxp-"),
+        "Expected xoxp- prefix for user token"
+    );
+
+    // Step 4: Validate and save.
+    println!("\nValidating tokens...");
+    validate_token(&bot_token, "bot")?;
+    validate_token(&user_token, "user")?;
+    validate_app_token(&app_token)?;
+
+    save_tokens(&app_token, &bot_token, &user_token)?;
+
+    println!("\nSetup complete! Restart the daemon to enable Socket Mode.");
+    Ok(())
+}
+
+/// Save tokens to config with default emoji colors and rules.
+fn save_tokens(app_token: &str, bot_token: &str, user_token: &str) -> Result<()> {
     let mut config = Config::load()?;
-    if config.slack.token.is_none() {
-        println!("Not logged in.");
+    config.slack.app_token = Some(app_token.to_string());
+    config.slack.bot_token = Some(bot_token.to_string());
+    config.slack.user_token = Some(user_token.to_string());
+    config.slack.events_enabled = true;
+
+    // Populate default emoji_colors if empty.
+    if config.slack.emoji_colors.is_empty() {
+        config.slack.emoji_colors.extend(default_emoji_colors());
+    }
+
+    // Populate a default DM rule if empty.
+    if config.slack.rules.is_empty() {
+        config.slack.rules.push(slicky_core::SlackRule {
+            name: "DM notification".to_string(),
+            event: "message.im".to_string(),
+            from_user: None,
+            contains: None,
+            animation: "flash".to_string(),
+            color: "#00FF00".to_string(),
+            speed: 2.0,
+            repeat: 3,
+            duration_secs: None,
+        });
+    }
+
+    config.save()?;
+    Ok(())
+}
+
+/// `slicky slack disconnect` — clear all Slack tokens.
+pub fn disconnect() -> Result<()> {
+    let mut config = Config::load()?;
+    let had_tokens = config.slack.app_token.is_some()
+        || config.slack.bot_token.is_some()
+        || config.slack.user_token.is_some();
+
+    if !had_tokens {
+        println!("Slack: not connected.");
         return Ok(());
     }
-    config.slack.token = None;
+
+    config.slack.app_token = None;
+    config.slack.bot_token = None;
+    config.slack.user_token = None;
+    config.slack.events_enabled = false;
     config.save()?;
-    println!("Slack token removed.");
+    println!("Slack tokens removed. Restart the daemon to take effect.");
     Ok(())
 }
 
 /// `slicky slack status` — show connection state.
 pub fn status() -> Result<()> {
     let config = Config::load()?;
-    match &config.slack.token {
-        Some(token) => {
-            let masked = if token.len() > 12 {
-                format!("{}...{}", &token[..8], &token[token.len() - 4..])
+
+    let has_app = config.slack.app_token.is_some();
+    let has_bot = config.slack.bot_token.is_some();
+    let has_user = config.slack.user_token.is_some();
+
+    if has_app || has_bot || has_user {
+        println!("Slack: connected");
+        println!(
+            "  App token:  {}",
+            if has_app { "configured" } else { "missing" }
+        );
+        println!(
+            "  Bot token:  {}",
+            if has_bot { "configured" } else { "missing" }
+        );
+        println!(
+            "  User token: {}",
+            if has_user { "configured" } else { "missing" }
+        );
+        println!(
+            "  Events:     {}",
+            if config.slack.events_enabled {
+                "enabled"
             } else {
-                "****".to_string()
-            };
-            println!("Slack: logged in (token: {masked})");
-            println!("Poll interval: {}s", config.slack.poll_interval_secs);
-        }
-        None => {
-            println!("Slack: not logged in");
-            println!("Run `slicky slack login` to connect.");
-        }
+                "disabled"
+            }
+        );
+        println!("  Rules:      {}", config.slack.rules.len());
+        println!("  Emoji map:  {} entries", config.slack.emoji_colors.len());
+    } else {
+        println!("Slack: not connected");
+        println!("Run `slicky slack setup` to connect.");
     }
     Ok(())
 }
@@ -104,8 +260,8 @@ pub fn status() -> Result<()> {
 /// `slicky slack set-status` — set Slack status text and emoji.
 pub fn set_status(text: &str, emoji: &str) -> Result<()> {
     let config = Config::load()?;
-    let token = config.slack.token.ok_or_else(|| {
-        anyhow::anyhow!("not logged in to Slack — run `slicky slack login` first")
+    let token = config.slack.user_token.ok_or_else(|| {
+        anyhow::anyhow!("not connected to Slack — run `slicky slack setup` first")
     })?;
 
     let body = serde_json::json!({
@@ -145,113 +301,71 @@ pub fn clear_status() -> Result<()> {
     set_status("", "")
 }
 
-/// Extract the `code` query parameter from an HTTP GET request line.
-fn extract_code(request_line: &str) -> Result<String> {
-    // e.g. "GET /callback?code=XXXX HTTP/1.1"
-    let path = request_line
-        .split_whitespace()
-        .nth(1)
-        .ok_or_else(|| anyhow::anyhow!("malformed HTTP request"))?;
-
-    let query = path
-        .split('?')
-        .nth(1)
-        .ok_or_else(|| anyhow::anyhow!("no query string in callback"))?;
-
-    for pair in query.split('&') {
-        if let Some(value) = pair.strip_prefix("code=") {
-            return Ok(value.to_string());
-        }
+/// Prompt the user for input, returning the trimmed value.
+fn prompt(msg: &str) -> Result<String> {
+    print!("{msg}");
+    io::stdout().flush()?;
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    let trimmed = input.trim().to_string();
+    if trimmed.is_empty() {
+        bail!("no input provided");
     }
-
-    // Check for error parameter from Slack.
-    for pair in query.split('&') {
-        if let Some(value) = pair.strip_prefix("error=") {
-            bail!("Slack authorization denied: {value}");
-        }
-    }
-
-    bail!("no code parameter in callback URL")
+    Ok(trimmed)
 }
 
-/// Exchange an OAuth authorization code for a user access token.
-fn exchange_code(code: &str) -> Result<String> {
-    let body = format!(
-        "client_id={}&client_secret={}&code={}&redirect_uri={}",
-        SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, code, REDIRECT_URI
-    );
-
-    let resp = ureq::post("https://slack.com/api/oauth.v2.access")
+/// Validate a bot or user token via `auth.test`.
+fn validate_token(token: &str, label: &str) -> Result<()> {
+    let resp = ureq::post("https://slack.com/api/auth.test")
+        .header("Authorization", &format!("Bearer {token}"))
         .header("Content-Type", "application/x-www-form-urlencoded")
-        .send(body.as_bytes())
-        .context("failed to exchange code for token")?;
+        .send(&[])
+        .with_context(|| format!("failed to validate {label} token"))?;
 
     let json: serde_json::Value = serde_json::from_reader(resp.into_body().into_reader())
-        .context("failed to parse token response")?;
+        .context("failed to parse auth.test response")?;
 
     if !json["ok"].as_bool().unwrap_or(false) {
         let err = json["error"].as_str().unwrap_or("unknown error");
-        bail!("Slack token exchange failed: {err}");
+        bail!("{label} token validation failed: {err}");
     }
 
-    json["authed_user"]["access_token"]
-        .as_str()
-        .map(String::from)
-        .ok_or_else(|| anyhow::anyhow!("missing access_token in response"))
+    println!(
+        "  {label} token valid (team: {})",
+        json["team"].as_str().unwrap_or("?")
+    );
+    Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Validate an app-level token via `apps.connections.open`.
+fn validate_app_token(token: &str) -> Result<()> {
+    let resp = ureq::post("https://slack.com/api/apps.connections.open")
+        .header("Authorization", &format!("Bearer {token}"))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .send(&[])
+        .context("failed to validate app token")?;
 
-    #[test]
-    fn extract_code_standard_callback() {
-        let line = "GET /callback?code=abc123def456 HTTP/1.1";
-        let code = extract_code(line).unwrap();
-        assert_eq!(code, "abc123def456");
+    let json: serde_json::Value = serde_json::from_reader(resp.into_body().into_reader())
+        .context("failed to parse apps.connections.open response")?;
+
+    if !json["ok"].as_bool().unwrap_or(false) {
+        let err = json["error"].as_str().unwrap_or("unknown error");
+        bail!("app token validation failed: {err}");
     }
 
-    #[test]
-    fn extract_code_with_extra_params() {
-        let line = "GET /callback?state=xyz&code=mycode789&other=val HTTP/1.1";
-        let code = extract_code(line).unwrap();
-        assert_eq!(code, "mycode789");
-    }
+    println!("  app token valid (Socket Mode ready)");
+    Ok(())
+}
 
-    #[test]
-    fn extract_code_error_from_slack() {
-        let line = "GET /callback?error=access_denied HTTP/1.1";
-        let err = extract_code(line).unwrap_err();
-        assert!(
-            err.to_string().contains("access_denied"),
-            "should contain the error reason"
-        );
-    }
-
-    #[test]
-    fn extract_code_no_query_string() {
-        let line = "GET /callback HTTP/1.1";
-        assert!(extract_code(line).is_err());
-    }
-
-    #[test]
-    fn extract_code_no_code_param() {
-        let line = "GET /callback?state=xyz HTTP/1.1";
-        let err = extract_code(line).unwrap_err();
-        assert!(err.to_string().contains("no code parameter"));
-    }
-
-    #[test]
-    fn extract_code_malformed_request() {
-        let line = "INVALID";
-        // Only one word, nth(1) returns None.
-        assert!(extract_code(line).is_err());
-    }
-
-    #[test]
-    fn extract_code_empty_code() {
-        let line = "GET /callback?code= HTTP/1.1";
-        let code = extract_code(line).unwrap();
-        assert_eq!(code, "");
-    }
+/// Default emoji-to-color hex mappings.
+fn default_emoji_colors() -> Vec<(String, String)> {
+    vec![
+        (":no_entry:".to_string(), "#FF0000".to_string()),
+        (":red_circle:".to_string(), "#FF0000".to_string()),
+        (":calendar:".to_string(), "#FF4500".to_string()),
+        (":spiral_calendar_pad:".to_string(), "#FF4500".to_string()),
+        (":palm_tree:".to_string(), "#808080".to_string()),
+        (":house:".to_string(), "#00FF00".to_string()),
+        (":large_green_circle:".to_string(), "#00FF00".to_string()),
+    ]
 }

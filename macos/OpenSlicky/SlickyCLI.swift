@@ -37,7 +37,8 @@ final class SlickyCLI {
     // MARK: - Animation
 
     /// Spawn a blocking animation process. Returns the Process handle.
-    func animate(type animType: String, color: String? = nil, color2: String? = nil, speed: Double = 1.0) -> Process {
+    func animate(type animType: String, color: String? = nil, color2: String? = nil,
+                 speed: Double = 1.0, brightness: Double = 1.0) -> Process {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binaryPath)
 
@@ -49,6 +50,9 @@ final class SlickyCLI {
             args += ["--color2", c2]
         }
         args += ["--speed", String(format: "%.2f", speed)]
+        if brightness < 1.0 {
+            args += ["--brightness", String(format: "%.2f", brightness)]
+        }
 
         process.arguments = args
         process.standardOutput = FileHandle.nullDevice
@@ -88,28 +92,30 @@ final class SlickyCLI {
 
     // MARK: - Slack
 
-    /// Check Slack connection status. Returns true if logged in.
+    /// Check Slack connection status. Returns true if connected.
     func isSlackConnected() async -> Bool {
         let (output, _) = await run(["slack", "status"])
         let lower = output.lowercased()
-        return lower.contains("logged in") && !lower.contains("not logged in")
+        return lower.contains("connected") && !lower.contains("not connected")
     }
 
-    /// Start Slack OAuth login (opens browser). Non-blocking — fires and forgets.
-    func slackLogin() {
-        // Run without waiting — the CLI opens the browser and waits for callback
-        Task.detached { [binaryPath] in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: binaryPath)
-            process.arguments = ["slack", "login"]
-            try? process.run()
-            // Don't wait — let it run in background
-        }
+    /// Open the browser with the pre-filled Slack app manifest.
+    func openSlackAppCreation() async -> Bool {
+        let (_, ok) = await run(["slack", "open-setup"])
+        return ok
     }
 
-    /// Disconnect Slack.
-    func slackLogout() async -> Bool {
-        let (_, ok) = await run(["slack", "logout"])
+    /// Non-interactive Slack token configuration. Returns (output, success).
+    func configureSlack(appToken: String, botToken: String, userToken: String) async -> (String, Bool) {
+        return await run(["slack", "configure",
+                          "--app-token", appToken,
+                          "--bot-token", botToken,
+                          "--user-token", userToken])
+    }
+
+    /// Disconnect Slack (clears all tokens).
+    func slackDisconnect() async -> Bool {
+        let (_, ok) = await run(["slack", "disconnect"])
         return ok
     }
 
