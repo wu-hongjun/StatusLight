@@ -241,6 +241,9 @@ fn transition_frame(t: f64, colors: &[Color]) -> Color {
 /// Colors form a ring: `[A, B, C]` → `A→B→C→A→B→C→...` with equal time
 /// per segment over the given `period`.
 fn cycle_colors(t: f64, colors: &[Color], period: f64) -> Color {
+    if colors.is_empty() {
+        return Color::off();
+    }
     let n = colors.len();
     let phase = ((t % period) / period).clamp(0.0, 1.0);
     let segment = phase * n as f64;

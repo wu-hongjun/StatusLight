@@ -291,7 +291,7 @@ fn main() -> Result<()> {
     let brightness_val = cli.brightness.unwrap_or(config.brightness).min(100);
     let brightness_factor = brightness_val as f64 / 100.0;
 
-    /// Apply brightness scaling to a color.
+    // Apply brightness scaling to a color.
     fn apply_brightness(color: Color, factor: f64) -> Color {
         if (factor - 1.0).abs() < f64::EPSILON {
             color
@@ -308,7 +308,7 @@ fn main() -> Result<()> {
                 let scaled = apply_brightness(color, brightness_factor);
                 let device = DeviceProxy::open(cli.all, cli.device.as_deref())?;
                 device.set_color(scaled).context("failed to set color")?;
-                println!("Set to {} ({})", preset.name(), color);
+                println!("Set to {} ({})", preset.name(), scaled);
             } else {
                 // Check custom presets.
                 let lower = name.to_lowercase();
@@ -324,7 +324,14 @@ fn main() -> Result<()> {
                     if let Some(ref anim_name) = cp.animation {
                         let anim = AnimationType::from_name(anim_name)
                             .ok_or_else(|| anyhow::anyhow!("unknown animation: {anim_name}"))?;
-                        animate::run(anim, &[color], cp.speed, brightness_factor)?;
+                        animate::run(
+                            anim,
+                            &[color],
+                            cp.speed,
+                            brightness_factor,
+                            cli.all,
+                            cli.device.as_deref(),
+                        )?;
                     } else {
                         let scaled = apply_brightness(color, brightness_factor);
                         let device = DeviceProxy::open(cli.all, cli.device.as_deref())?;
@@ -356,7 +363,6 @@ fn main() -> Result<()> {
             println!("Light off");
         }
         Commands::Presets => {
-            let config = Config::load()?;
             println!("{:<15}COLOR", "NAME");
             println!("{}", "-".repeat(28));
             for p in Preset::all() {
@@ -483,7 +489,14 @@ fn main() -> Result<()> {
                     )
                 }
             };
-            animate::run(anim_type, &colors, speed, brightness)?;
+            animate::run(
+                anim_type,
+                &colors,
+                speed,
+                brightness,
+                cli.all,
+                cli.device.as_deref(),
+            )?;
         }
         Commands::Color { action } => match action {
             ColorAction::Override { name, hex } => color_cmd::override_color(&name, &hex)?,

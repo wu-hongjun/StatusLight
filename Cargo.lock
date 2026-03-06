@@ -1747,7 +1747,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "statuslight-cli"
-version = "0.1.5"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1767,7 +1767,7 @@ dependencies = [
 
 [[package]]
 name = "statuslight-core"
-version = "0.1.5"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1782,7 +1782,7 @@ dependencies = [
 
 [[package]]
 name = "statuslight-daemon"
-version = "0.1.5"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1804,7 +1804,7 @@ dependencies = [
 
 [[package]]
 name = "statuslight-ffi"
-version = "0.1.5"
+version = "0.2.0"
 dependencies = [
  "cbindgen",
  "env_logger",

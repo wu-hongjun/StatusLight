@@ -273,6 +273,9 @@ impl Config {
         let contents = fs::read_to_string(path)?;
         let mut config: Config = toml::from_str(&contents)?;
 
+        // Clamp brightness to valid range (0-100).
+        config.brightness = config.brightness.min(100);
+
         // Migrate legacy single token → user_token.
         if config.slack.token.is_some() && config.slack.user_token.is_none() {
             config.slack.user_token = config.slack.token.take();

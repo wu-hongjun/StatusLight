@@ -49,9 +49,20 @@ pub fn build_color_report(color: Color) -> [u8; REPORT_SIZE] {
     ]
 }
 
-/// Build a 10-byte off report (all zeros).
+/// Build a 10-byte off report (report ID set, colors zeroed).
 pub fn build_off_report() -> [u8; REPORT_SIZE] {
-    [0u8; REPORT_SIZE]
+    [
+        REPORT_ID,
+        ACTION_SET_COLOR_HI,
+        ACTION_SET_COLOR_LO,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]
 }
 
 /// HID-backed EPOS Busylight device.
@@ -152,9 +163,15 @@ mod tests {
     }
 
     #[test]
-    fn off_report_is_all_zeros() {
+    fn off_report_has_action_but_no_color() {
         let report = build_off_report();
-        assert_eq!(report, [0u8; REPORT_SIZE]);
+        assert_eq!(report[0], REPORT_ID);
+        assert_eq!(report[1], ACTION_SET_COLOR_HI);
+        assert_eq!(report[2], ACTION_SET_COLOR_LO);
+        // All color bytes should be zero.
+        for &b in &report[3..10] {
+            assert_eq!(b, 0);
+        }
     }
 
     #[test]

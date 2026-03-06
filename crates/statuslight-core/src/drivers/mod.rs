@@ -9,7 +9,7 @@ mod luxafor;
 mod muteme;
 mod slicky;
 
-pub mod hid_helpers;
+pub(crate) mod hid_helpers;
 
 pub use blink1::Blink1Driver;
 pub use blinkstick::BlinkStickDriver;

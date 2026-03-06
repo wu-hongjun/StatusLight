@@ -2,6 +2,9 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    println!("cargo:rerun-if-changed=src/lib.rs");
+    println!("cargo:rerun-if-changed=cbindgen.toml");
+
     let crate_dir =
         env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR must be set by Cargo");
     let crate_path = PathBuf::from(&crate_dir);

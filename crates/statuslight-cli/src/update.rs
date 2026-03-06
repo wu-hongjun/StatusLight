@@ -359,7 +359,7 @@ mod tests {
     fn current_version_is_valid_semver() {
         let v = current_version().expect("should parse CARGO_PKG_VERSION");
         // Should match the version in Cargo.toml.
-        assert_eq!(v, Version::new(0, 1, 5));
+        assert_eq!(v, Version::new(0, 2, 0));
     }
 
     #[test]
