@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use statuslight_core::{Color, HidSlickyDevice, SlackRule};
+use statuslight_core::{Color, SlackRule, StatusLightDevice};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -16,9 +16,9 @@ pub struct AppState {
 
 /// The inner state protected by `Arc`.
 pub struct AppStateInner {
-    /// The HID device handle. `Option` allows starting without a connected device.
+    /// The device handle. `Option` allows starting without a connected device.
     /// `Mutex` because `HidDevice` is `Send` but not `Sync`.
-    pub device: Mutex<Option<HidSlickyDevice>>,
+    pub device: Mutex<Option<Box<dyn StatusLightDevice>>>,
     /// The last color set on the device.
     pub current_color: Mutex<Option<Color>>,
     /// Slack integration state.

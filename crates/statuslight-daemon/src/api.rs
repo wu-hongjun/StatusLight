@@ -6,7 +6,7 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
-use statuslight_core::{Color, HidSlickyDevice, Preset, StatusLightDevice, StatusLightError};
+use statuslight_core::{Color, DeviceRegistry, Preset, StatusLightError};
 
 use crate::slack;
 use crate::state::AppState;
@@ -152,7 +152,7 @@ async fn try_set_color(
 
     // Try to reconnect if no device is held.
     if device_guard.is_none() {
-        match HidSlickyDevice::open() {
+        match DeviceRegistry::with_builtins().open_any() {
             Ok(dev) => *device_guard = Some(dev),
             Err(e) => return Err(map_error(e)),
         }
@@ -265,7 +265,9 @@ async fn get_presets() -> impl IntoResponse {
 }
 
 async fn get_devices() -> Result<Json<Vec<DeviceEntry>>, (StatusCode, Json<ErrorResponse>)> {
-    let devices = HidSlickyDevice::enumerate().map_err(map_error)?;
+    let registry = DeviceRegistry::with_builtins();
+    let all = registry.enumerate_all();
+    let devices: Vec<_> = all.into_iter().map(|(_, info)| info).collect();
     let entries: Vec<DeviceEntry> = devices
         .into_iter()
         .map(|d| DeviceEntry {

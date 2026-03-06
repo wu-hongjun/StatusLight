@@ -9,7 +9,7 @@ mod update;
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use daemon_client::DeviceProxy;
-use statuslight_core::{AnimationType, Color, Config, HidSlickyDevice, Preset};
+use statuslight_core::{AnimationType, Color, Config, DeviceRegistry, Preset};
 
 #[derive(Parser)]
 #[command(name = "statuslight", version, about = "Control your USB status light")]
@@ -30,7 +30,7 @@ enum Commands {
     Off,
     /// List all available preset names and their colors
     Presets,
-    /// List connected Slicky devices
+    /// List connected status light devices
     Devices,
     /// Play an animation on the light (blocking, Ctrl-C to stop)
     Animate {
@@ -343,12 +343,14 @@ fn main() -> Result<()> {
             }
         }
         Commands::Devices => {
-            let devices = HidSlickyDevice::enumerate().context("failed to enumerate devices")?;
+            let registry = DeviceRegistry::with_builtins();
+            let devices = registry.enumerate_all();
             if devices.is_empty() {
-                println!("No Slicky devices found");
+                println!("No devices found");
             } else {
-                for (i, d) in devices.iter().enumerate() {
+                for (i, (driver_id, d)) in devices.iter().enumerate() {
                     println!("Device {}:", i + 1);
+                    println!("  Driver:       {driver_id}");
                     if let Some(ref s) = d.serial {
                         println!("  Serial:       {s}");
                     }
@@ -493,7 +495,8 @@ fn main() -> Result<()> {
             UpdateAction::Install => update::install()?,
         },
         Commands::Status => {
-            let devices = HidSlickyDevice::enumerate().context("failed to enumerate devices")?;
+            let registry = DeviceRegistry::with_builtins();
+            let devices = registry.enumerate_all();
             if devices.is_empty() {
                 println!("Device:  not connected");
             } else {

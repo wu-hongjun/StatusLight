@@ -7,7 +7,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
-use statuslight_core::{Color, HidSlickyDevice, StatusLightDevice};
+use statuslight_core::{Color, DeviceRegistry, StatusLightDevice};
 
 /// Socket path used by the daemon.
 const DAEMON_SOCKET: &str = "/tmp/statuslight.sock";
@@ -22,8 +22,8 @@ const SOCKET_TIMEOUT: Duration = Duration::from_secs(5);
 pub enum DeviceProxy {
     /// Route commands through the daemon's Unix socket.
     Daemon,
-    /// Direct HID access (no daemon running).
-    Direct(HidSlickyDevice),
+    /// Direct device access (no daemon running).
+    Direct(Box<dyn StatusLightDevice>),
 }
 
 impl DeviceProxy {
@@ -32,8 +32,9 @@ impl DeviceProxy {
         if Path::new(DAEMON_SOCKET).exists() {
             return Ok(Self::Daemon);
         }
-        let device =
-            HidSlickyDevice::open().context("failed to open Slicky device (no daemon running)")?;
+        let device = DeviceRegistry::with_builtins()
+            .open_any()
+            .context("failed to open device (no daemon running)")?;
         Ok(Self::Direct(device))
     }
 

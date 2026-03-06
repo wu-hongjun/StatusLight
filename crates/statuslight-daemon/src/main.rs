@@ -40,10 +40,11 @@ async fn main() -> Result<()> {
 
     let state = AppState::new();
 
-    // Try to open the device at startup (non-fatal if not found).
-    match statuslight_core::HidSlickyDevice::open() {
+    // Try to open any device at startup (non-fatal if not found).
+    let registry = statuslight_core::DeviceRegistry::with_builtins();
+    match registry.open_any() {
         Ok(dev) => {
-            log::info!("Slicky device found at startup");
+            log::info!("Device found at startup: {}", dev.driver_name());
             *state.inner.device.lock().await = Some(dev);
         }
         Err(e) => {

@@ -6,9 +6,7 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
-use statuslight_core::{
-    AnimationType, Color, HidSlickyDevice, Preset, SlackRule, StatusLightDevice,
-};
+use statuslight_core::{AnimationType, Color, DeviceRegistry, Preset, SlackRule};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::state::AppState;
@@ -371,7 +369,7 @@ async fn trigger_animation(rule: &SlackRule, state: &AppState) {
 async fn set_device_color(state: &AppState, color: Color) {
     let mut device_guard = state.inner.device.lock().await;
     if device_guard.is_none() {
-        if let Ok(dev) = HidSlickyDevice::open() {
+        if let Ok(dev) = DeviceRegistry::with_builtins().open_any() {
             *device_guard = Some(dev);
         }
     }
