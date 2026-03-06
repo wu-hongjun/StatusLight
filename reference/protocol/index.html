@@ -923,6 +923,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Button Behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#button-color-status-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Button Color → Status Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1317,6 +1334,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Button Behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#button-color-status-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Button Color → Status Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1628,9 +1662,46 @@
 <ul>
 <li>The button cycling is handled entirely in firmware</li>
 <li>The button does <strong>not</strong> generate HID input reports</li>
-<li>Whether CMD 0x0B reflects the button-cycled color (vs. the last HID-set color) is under investigation</li>
-<li>The cycle colors (white, red, yellow, green) correspond to common status indicators and could be mapped to statuses (e.g., available, busy, away, in-meeting)</li>
+<li><strong>CMD 0x0B does reflect the button-cycled color</strong> (confirmed experimentally)</li>
 </ul>
+<h3 id="button-color-status-mapping">Button Color → Status Mapping<a class="headerlink" href="#button-color-status-mapping" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Button Color</th>
+<th>Hex</th>
+<th>Status Preset</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>White</td>
+<td><code>#FFFFFF</code></td>
+<td>In Meeting</td>
+</tr>
+<tr>
+<td>Red</td>
+<td><code>#FF0000</code></td>
+<td>Busy</td>
+</tr>
+<tr>
+<td>Yellow</td>
+<td><code>#FFFF00</code></td>
+<td>Away</td>
+</tr>
+<tr>
+<td>Green</td>
+<td><code>#00FF00</code></td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Off</td>
+<td><code>#000000</code></td>
+<td>Off (clear status)</td>
+</tr>
+</tbody>
+</table>
+<p>All button-cycle colors use pure channel values (<code>0x00</code> or <code>0xFF</code>), enabling exact-match detection. The daemon polls CMD 0x0B every 2 seconds to detect button presses and can optionally sync the detected status to Slack.</p>
 <h2 id="communication-pattern">Communication Pattern<a class="headerlink" href="#communication-pattern" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Bidirectional</strong>: The host sends output reports and reads input reports for query responses</li>
