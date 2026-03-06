@@ -266,6 +266,8 @@ final class StatusLightCLI {
     // MARK: - Private Helpers
 
     /// Run the CLI binary with the given arguments, piping input to stdin.
+    ///
+    /// Uses concurrent pipe reading and a 15-second watchdog timer.
     private func runWithStdin(_ arguments: [String], input: String) async -> (String, Bool) {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async { [binaryPath] in
@@ -280,21 +282,53 @@ final class StatusLightCLI {
                 let inPipe = Pipe()
                 process.standardInput = inPipe
 
+                // Collect output asynchronously to avoid pipe buffer deadlock.
+                var outputData = Data()
+                let outputLock = NSLock()
+                outPipe.fileHandleForReading.readabilityHandler = { handle in
+                    let chunk = handle.availableData
+                    if !chunk.isEmpty {
+                        outputLock.lock()
+                        outputData.append(chunk)
+                        outputLock.unlock()
+                    }
+                }
+
                 do {
                     try process.run()
-                    // Write tokens to stdin and close.
                     if let data = input.data(using: .utf8) {
                         inPipe.fileHandleForWriting.write(data)
                     }
                     inPipe.fileHandleForWriting.closeFile()
-                    process.waitUntilExit()
                 } catch {
+                    outPipe.fileHandleForReading.readabilityHandler = nil
                     continuation.resume(returning: ("", false))
                     return
                 }
 
-                let data = outPipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
+                // Watchdog: kill process after 15 seconds.
+                let processRef = process
+                let watchdog = DispatchWorkItem {
+                    if processRef.isRunning {
+                        processRef.terminate()
+                    }
+                }
+                DispatchQueue.global(qos: .utility).asyncAfter(
+                    deadline: .now() + 15.0,
+                    execute: watchdog
+                )
+
+                process.waitUntilExit()
+                watchdog.cancel()
+
+                outPipe.fileHandleForReading.readabilityHandler = nil
+                let finalChunk = outPipe.fileHandleForReading.readDataToEndOfFile()
+
+                outputLock.lock()
+                outputData.append(finalChunk)
+                let output = String(data: outputData, encoding: .utf8) ?? ""
+                outputLock.unlock()
+
                 let ok = process.terminationStatus == 0
                 continuation.resume(returning: (output, ok))
             }
@@ -302,6 +336,9 @@ final class StatusLightCLI {
     }
 
     /// Run the CLI binary with the given arguments and return (stdout, success).
+    ///
+    /// Uses concurrent pipe reading (avoids pipe-buffer deadlock) and a 15-second
+    /// watchdog timer that terminates the process if it hangs.
     private func run(_ arguments: [String]) async -> (String, Bool) {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async { [binaryPath] in
@@ -313,16 +350,50 @@ final class StatusLightCLI {
                 process.standardOutput = pipe
                 process.standardError = pipe
 
+                // Collect output asynchronously to avoid pipe buffer deadlock.
+                var outputData = Data()
+                let outputLock = NSLock()
+                pipe.fileHandleForReading.readabilityHandler = { handle in
+                    let chunk = handle.availableData
+                    if !chunk.isEmpty {
+                        outputLock.lock()
+                        outputData.append(chunk)
+                        outputLock.unlock()
+                    }
+                }
+
                 do {
                     try process.run()
-                    process.waitUntilExit()
                 } catch {
+                    pipe.fileHandleForReading.readabilityHandler = nil
                     continuation.resume(returning: ("", false))
                     return
                 }
 
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
+                // Watchdog: kill process after 15 seconds.
+                let processRef = process
+                let watchdog = DispatchWorkItem {
+                    if processRef.isRunning {
+                        processRef.terminate()
+                    }
+                }
+                DispatchQueue.global(qos: .utility).asyncAfter(
+                    deadline: .now() + 15.0,
+                    execute: watchdog
+                )
+
+                process.waitUntilExit()
+                watchdog.cancel()
+
+                // Stop reading and collect final data.
+                pipe.fileHandleForReading.readabilityHandler = nil
+                let finalChunk = pipe.fileHandleForReading.readDataToEndOfFile()
+
+                outputLock.lock()
+                outputData.append(finalChunk)
+                let output = String(data: outputData, encoding: .utf8) ?? ""
+                outputLock.unlock()
+
                 let ok = process.terminationStatus == 0
                 continuation.resume(returning: (output, ok))
             }
