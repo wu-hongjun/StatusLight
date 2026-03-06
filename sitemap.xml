@@ -1,95 +1,95 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/development/architecture/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/development/architecture/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/development/contributing/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/development/contributing/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/getting-started/installation/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/getting-started/installation/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/getting-started/quickstart/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/getting-started/quickstart/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/001-full-stack-scaffold/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/001-full-stack-scaffold/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/002-ci-cd-setup/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/002-ci-cd-setup/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/003-github-pages/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/003-github-pages/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/004-dmg-release/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/004-dmg-release/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/005-ux-overhaul/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/005-ux-overhaul/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/006-app-bundle/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/006-app-bundle/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/007-swiftui-gui/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/007-swiftui-gui/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/008-animations-customization/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/008-animations-customization/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/009-dual-ui-cli-completeness/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/009-dual-ui-cli-completeness/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/014-slack-integration-overhaul/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/014-slack-integration-overhaul/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/015-streamlined-slack-setup/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/015-streamlined-slack-setup/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/016-auto-update-install/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/016-auto-update-install/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/017-bidirectional-slack-sync/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/plans/017-bidirectional-slack-sync/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/reference/cli/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/reference/cli/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/reference/daemon-api/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/reference/daemon-api/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/reference/ffi/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/reference/ffi/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/reference/protocol/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/reference/protocol/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
     <url>
-         <loc>https://wu-hongjun.github.io/OpenSilcky/slack-setup/</loc>
+         <loc>https://wu-hongjun.github.io/StatusLight/slack-setup/</loc>
          <lastmod>2026-03-06</lastmod>
     </url>
 </urlset>
