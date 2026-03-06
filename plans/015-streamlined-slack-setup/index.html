@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://wu-hongjun.github.io/OpenSilcky/plans/003-github-pages/">
+        <link rel="canonical" href="https://wu-hongjun.github.io/OpenSilcky/plans/015-streamlined-slack-setup/">
       
       
       
@@ -23,7 +23,7 @@
     
     
       
-        <title>GitHub Pages Deployment for MkDocs - OpenSlicky</title>
+        <title>Plan 015 — Streamlined Slack Setup Flow - OpenSlicky</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#github-pages-deployment-for-mkdocs" class="md-skip">
+        <a href="#plan-015-streamlined-slack-setup-flow" class="md-skip">
           Skip to content
         </a>
       
@@ -108,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              GitHub Pages Deployment for MkDocs
+              Plan 015 — Streamlined Slack Setup Flow
             
           </span>
         </div>
@@ -852,10 +852,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-create-githubworkflowsdocsyml" class="md-nav__link">
+  <a href="#cli-slackrs-mainrs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Create .github/workflows/docs.yml
+        CLI (slack.rs, main.rs)
       
     </span>
   </a>
@@ -863,10 +863,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-save-plan-to-docsplans003-github-pagesmd" class="md-nav__link">
+  <a href="#macos-app-slickycliswift-openslickyappswift" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Save plan to docs/plans/003-github-pages.md
+        macOS App (SlickyCLI.swift, OpenSlickyApp.swift)
       
     </span>
   </a>
@@ -874,32 +874,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#files-to-create" class="md-nav__link">
+  <a href="#docs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Files to create
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#post-deploy-note" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Post-deploy note
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#verification" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification
+        Docs
       
     </span>
   </a>
@@ -908,6 +886,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files-modified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files Modified
+      
+    </span>
+  </a>
   
 </li>
       
@@ -931,50 +920,74 @@
   
 
 
-<h1 id="github-pages-deployment-for-mkdocs">GitHub Pages Deployment for MkDocs<a class="headerlink" href="#github-pages-deployment-for-mkdocs" title="Permanent link">&para;</a></h1>
+<h1 id="plan-015-streamlined-slack-setup-flow">Plan 015 — Streamlined Slack Setup Flow<a class="headerlink" href="#plan-015-streamlined-slack-setup-flow" title="Permanent link">&para;</a></h1>
 <h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
-<p>OpenSlicky already has a complete MkDocs Material setup (<code>mkdocs.yml</code>) and documentation content in <code>/docs/</code>. There's no workflow to deploy the docs to GitHub Pages. We need a workflow that builds and deploys the site automatically.</p>
+<p>The Slack setup from Plan 014 works but requires 12+ steps across 3 interfaces. This plan streamlines it:</p>
+<ul>
+<li><strong>CLI</strong>: Auto-opens browser with pre-filled manifest URL (no manual manifest copying)</li>
+<li><strong>macOS app</strong>: In-app 4-step wizard with paste fields and inline validation</li>
+<li>Default app name changed to <strong>"Status Light"</strong></li>
+</ul>
 <h2 id="changes">Changes<a class="headerlink" href="#changes" title="Permanent link">&para;</a></h2>
-<h3 id="1-create-githubworkflowsdocsyml">1. Create <code>.github/workflows/docs.yml</code><a class="headerlink" href="#1-create-githubworkflowsdocsyml" title="Permanent link">&para;</a></h3>
-<p><strong>Triggers:</strong>
-- Push to <code>main</code> (path-filtered to <code>docs/**</code> and <code>mkdocs.yml</code>)
-- Manual dispatch (<code>workflow_dispatch</code>)</p>
-<p><strong>Job: <code>deploy</code></strong> on <code>ubuntu-latest</code>:
-1. Checkout (with <code>fetch-depth: 0</code> for git metadata)
-2. Set up Python 3.x
-3. <code>pip install mkdocs-material</code>
-4. <code>mkdocs gh-deploy --force</code> (builds site + pushes to <code>gh-pages</code> branch)</p>
-<p><strong>Permissions:</strong> <code>contents: write</code> (needed to push to <code>gh-pages</code> branch)</p>
-<h3 id="2-save-plan-to-docsplans003-github-pagesmd">2. Save plan to <code>docs/plans/003-github-pages.md</code><a class="headerlink" href="#2-save-plan-to-docsplans003-github-pagesmd" title="Permanent link">&para;</a></h3>
-<p>Per project convention.</p>
-<h3 id="files-to-create">Files to create<a class="headerlink" href="#files-to-create" title="Permanent link">&para;</a></h3>
+<h3 id="cli-slackrs-mainrs">CLI (<code>slack.rs</code>, <code>main.rs</code>)<a class="headerlink" href="#cli-slackrs-mainrs" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>percent_encode()</code> — inline RFC 3986 encoding (no new dependency)</li>
+<li><code>manifest_url()</code> — builds Slack app-creation URL with pre-filled JSON manifest</li>
+<li><code>prompt_continue()</code> — accepts empty input for "press Enter" prompts</li>
+<li><code>open_setup()</code> — non-interactive, opens browser (for macOS app)</li>
+<li><code>configure()</code> — non-interactive token setup with validation (for macOS app)</li>
+<li><code>save_tokens()</code> — extracted shared token-saving logic</li>
+<li><code>setup()</code> — updated to auto-open browser, clearer step-by-step flow</li>
+<li>New <code>SlackAction</code> variants: <code>OpenSetup</code>, <code>Configure { app_token, bot_token, user_token }</code></li>
+</ul>
+<h3 id="macos-app-slickycliswift-openslickyappswift">macOS App (<code>SlickyCLI.swift</code>, <code>OpenSlickyApp.swift</code>)<a class="headerlink" href="#macos-app-slickycliswift-openslickyappswift" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>openSlackAppCreation()</code> — CLI bridge for <code>slack open-setup</code></li>
+<li><code>configureSlack()</code> — CLI bridge for <code>slack configure</code></li>
+<li><code>SlackSetupWizard</code> — 4-step sheet: create app, app token, install &amp; tokens, verify &amp; connect</li>
+<li><code>SlackSection</code> — "Setup Guide" button replaced with "Connect Slack" + wizard sheet</li>
+<li>Removed <code>openSlackSetup()</code> (was opening GitHub Pages)</li>
+</ul>
+<h3 id="docs">Docs<a class="headerlink" href="#docs" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>docs/slack-setup/index.md</code> — simplified to reflect auto-open browser flow</li>
+<li><code>docs/slack-setup/manifest.json</code> — app name "OpenSlicky" → "Status Light"</li>
+</ul>
+<h2 id="files-modified">Files Modified<a class="headerlink" href="#files-modified" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>File</th>
-<th>Action</th>
+<th>Change</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>.github/workflows/docs.yml</code></td>
-<td>Create</td>
+<td><code>crates/slicky-cli/src/slack.rs</code></td>
+<td>New helpers + streamlined setup</td>
 </tr>
 <tr>
-<td><code>docs/plans/003-github-pages.md</code></td>
-<td>Create (copy of this plan)</td>
+<td><code>crates/slicky-cli/src/main.rs</code></td>
+<td>New SlackAction variants</td>
+</tr>
+<tr>
+<td><code>macos/OpenSlicky/SlickyCLI.swift</code></td>
+<td>New CLI bridge methods</td>
+</tr>
+<tr>
+<td><code>macos/OpenSlicky/OpenSlickyApp.swift</code></td>
+<td>SlackSetupWizard + updated SlackSection</td>
+</tr>
+<tr>
+<td><code>docs/slack-setup/index.md</code></td>
+<td>Simplified docs</td>
+</tr>
+<tr>
+<td><code>docs/slack-setup/manifest.json</code></td>
+<td>Renamed to "Status Light"</td>
 </tr>
 </tbody>
 </table>
-<h3 id="post-deploy-note">Post-deploy note<a class="headerlink" href="#post-deploy-note" title="Permanent link">&para;</a></h3>
-<p>After the first push, GitHub Pages must be enabled in repo settings:
-<strong>Settings → Pages → Source → "Deploy from a branch" → <code>gh-pages</code> / <code>/ (root)</code></strong></p>
-<h3 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Push to <code>main</code> with a docs change → workflow triggers</li>
-<li><code>gh-pages</code> branch is created with built HTML site</li>
-<li>Site is accessible at the GitHub Pages URL</li>
-</ul>
 
 
 

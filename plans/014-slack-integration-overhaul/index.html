@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://wu-hongjun.github.io/OpenSilcky/plans/003-github-pages/">
+        <link rel="canonical" href="https://wu-hongjun.github.io/OpenSilcky/plans/014-slack-integration-overhaul/">
       
       
       
@@ -23,7 +23,7 @@
     
     
       
-        <title>GitHub Pages Deployment for MkDocs - OpenSlicky</title>
+        <title>Plan 014 — Slack Integration Overhaul - OpenSlicky</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#github-pages-deployment-for-mkdocs" class="md-skip">
+        <a href="#plan-014-slack-integration-overhaul" class="md-skip">
           Skip to content
         </a>
       
@@ -108,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              GitHub Pages Deployment for MkDocs
+              Plan 014 — Slack Integration Overhaul
             
           </span>
         </div>
@@ -829,10 +829,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context" class="md-nav__link">
+  <a href="#summary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context
+        Summary
       
     </span>
   </a>
@@ -840,22 +840,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#changes" class="md-nav__link">
+  <a href="#changes-made" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Changes
+        Changes Made
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Changes">
+    <nav class="md-nav" aria-label="Changes Made">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-create-githubworkflowsdocsyml" class="md-nav__link">
+  <a href="#core-slicky-core" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Create .github/workflows/docs.yml
+        Core (slicky-core)
       
     </span>
   </a>
@@ -863,10 +863,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-save-plan-to-docsplans003-github-pagesmd" class="md-nav__link">
+  <a href="#cli-slicky-cli" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Save plan to docs/plans/003-github-pages.md
+        CLI (slicky-cli)
       
     </span>
   </a>
@@ -874,10 +874,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#files-to-create" class="md-nav__link">
+  <a href="#daemon-slicky-daemon" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Files to create
+        Daemon (slicky-daemon)
       
     </span>
   </a>
@@ -885,10 +885,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#post-deploy-note" class="md-nav__link">
+  <a href="#dependencies" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Post-deploy note
+        Dependencies
       
     </span>
   </a>
@@ -896,10 +896,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#verification" class="md-nav__link">
+  <a href="#swift-ui-macosopenslicky" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verification
+        Swift UI (macos/OpenSlicky/)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI/CD
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
       
     </span>
   </a>
@@ -908,6 +930,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification
+      
+    </span>
+  </a>
   
 </li>
       
@@ -931,49 +964,76 @@
   
 
 
-<h1 id="github-pages-deployment-for-mkdocs">GitHub Pages Deployment for MkDocs<a class="headerlink" href="#github-pages-deployment-for-mkdocs" title="Permanent link">&para;</a></h1>
-<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
-<p>OpenSlicky already has a complete MkDocs Material setup (<code>mkdocs.yml</code>) and documentation content in <code>/docs/</code>. There's no workflow to deploy the docs to GitHub Pages. We need a workflow that builds and deploys the site automatically.</p>
-<h2 id="changes">Changes<a class="headerlink" href="#changes" title="Permanent link">&para;</a></h2>
-<h3 id="1-create-githubworkflowsdocsyml">1. Create <code>.github/workflows/docs.yml</code><a class="headerlink" href="#1-create-githubworkflowsdocsyml" title="Permanent link">&para;</a></h3>
-<p><strong>Triggers:</strong>
-- Push to <code>main</code> (path-filtered to <code>docs/**</code> and <code>mkdocs.yml</code>)
-- Manual dispatch (<code>workflow_dispatch</code>)</p>
-<p><strong>Job: <code>deploy</code></strong> on <code>ubuntu-latest</code>:
-1. Checkout (with <code>fetch-depth: 0</code> for git metadata)
-2. Set up Python 3.x
-3. <code>pip install mkdocs-material</code>
-4. <code>mkdocs gh-deploy --force</code> (builds site + pushes to <code>gh-pages</code> branch)</p>
-<p><strong>Permissions:</strong> <code>contents: write</code> (needed to push to <code>gh-pages</code> branch)</p>
-<h3 id="2-save-plan-to-docsplans003-github-pagesmd">2. Save plan to <code>docs/plans/003-github-pages.md</code><a class="headerlink" href="#2-save-plan-to-docsplans003-github-pagesmd" title="Permanent link">&para;</a></h3>
-<p>Per project convention.</p>
-<h3 id="files-to-create">Files to create<a class="headerlink" href="#files-to-create" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>File</th>
-<th>Action</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>.github/workflows/docs.yml</code></td>
-<td>Create</td>
-</tr>
-<tr>
-<td><code>docs/plans/003-github-pages.md</code></td>
-<td>Create (copy of this plan)</td>
-</tr>
-</tbody>
-</table>
-<h3 id="post-deploy-note">Post-deploy note<a class="headerlink" href="#post-deploy-note" title="Permanent link">&para;</a></h3>
-<p>After the first push, GitHub Pages must be enabled in repo settings:
-<strong>Settings → Pages → Source → "Deploy from a branch" → <code>gh-pages</code> / <code>/ (root)</code></strong></p>
-<h3 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h3>
+<h1 id="plan-014-slack-integration-overhaul">Plan 014 — Slack Integration Overhaul<a class="headerlink" href="#plan-014-slack-integration-overhaul" title="Permanent link">&para;</a></h1>
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<p>Replaced the broken shared-app OAuth model with per-user Slack apps (created from
+a provided manifest). Added Socket Mode for real-time WebSocket events and
+configurable event→animation rules stored in TOML.</p>
+<h2 id="changes-made">Changes Made<a class="headerlink" href="#changes-made" title="Permanent link">&para;</a></h2>
+<h3 id="core-slicky-core">Core (<code>slicky-core</code>)<a class="headerlink" href="#core-slicky-core" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Push to <code>main</code> with a docs change → workflow triggers</li>
-<li><code>gh-pages</code> branch is created with built HTML site</li>
-<li>Site is accessible at the GitHub Pages URL</li>
+<li><strong>config.rs</strong>: Expanded <code>SlackConfig</code> with three-token model (<code>app_token</code>,
+  <code>bot_token</code>, <code>user_token</code>), <code>events_enabled</code>, <code>emoji_colors</code> HashMap,
+  <code>rules</code> Vec. Added <code>SlackRule</code> struct. Legacy <code>token</code> field migrates
+  automatically to <code>user_token</code> on load.</li>
+<li><strong>animation.rs</strong>: Added <code>AnimationType::period()</code> returning base cycle
+  duration in seconds.</li>
+<li><strong>lib.rs</strong>: Re-exported <code>SlackRule</code>.</li>
+</ul>
+<h3 id="cli-slicky-cli">CLI (<code>slicky-cli</code>)<a class="headerlink" href="#cli-slicky-cli" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>slack.rs</strong>: Removed <code>env!()</code> macros for <code>SLACK_CLIENT_ID</code>/<code>SLACK_CLIENT_SECRET</code>,
+  OAuth flow, TCP listener. Replaced with guided <code>setup()</code> wizard that prompts
+  for three tokens, validates them via Slack API, saves to config with default
+  emoji colors and rules. Added <code>disconnect()</code> to clear all tokens.</li>
+<li><strong>main.rs</strong>: Renamed <code>SlackAction::Login</code>→<code>Setup</code>, <code>Logout</code>→<code>Disconnect</code>.
+  Updated status command to check new token fields.</li>
+</ul>
+<h3 id="daemon-slicky-daemon">Daemon (<code>slicky-daemon</code>)<a class="headerlink" href="#daemon-slicky-daemon" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>state.rs</strong>: Rewrote <code>SlackState</code> with three tokens, <code>emoji_colors</code> HashMap,
+  <code>rules</code> Vec, separate <code>socket_handle</code> and <code>emoji_poll_handle</code>. Added
+  <code>event_animation_active</code> AtomicBool and <code>event_animation_handle</code> to
+  <code>AppStateInner</code>.</li>
+<li><strong>slack.rs</strong>: Complete rewrite with four components:
+  (A) Socket Mode WebSocket client with exponential backoff reconnection
+  (B) Rule matcher — first-match event dispatch with user/text filters
+  (C) Event animation runner — temporary animation then restore previous color
+  (D) Emoji status poller — 60s interval, skips during event animations</li>
+<li><strong>api.rs</strong>: Updated <code>SlackStatusResponse</code> with <code>has_app_token</code>, <code>has_bot_token</code>,
+  <code>has_user_token</code>, <code>socket_connected</code>, <code>rules_count</code>. Updated configure/enable/
+  disable handlers for Socket Mode + emoji poll.</li>
+<li><strong>main.rs</strong>: Replaced <code>--slack-token</code>/<code>--slack-interval</code> with <code>--slack-app-token</code>.
+  Startup starts Socket Mode and/or emoji poll based on available tokens.</li>
+</ul>
+<h3 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Added <code>tokio-tungstenite</code> 0.24 and <code>futures-util</code> 0.3 to workspace and daemon.</li>
+<li>Added <code>time</code> and <code>sync</code> features to tokio workspace dep.</li>
+</ul>
+<h3 id="swift-ui-macosopenslicky">Swift UI (<code>macos/OpenSlicky/</code>)<a class="headerlink" href="#swift-ui-macosopenslicky" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>OpenSlickyApp.swift</strong>: <code>connectSlack()</code> → <code>openSlackSetup()</code> (opens GitHub
+  Pages guide). SlackSection shows "Socket Mode" indicator when connected.</li>
+<li><strong>SlickyCLI.swift</strong>: Removed <code>slackLogin()</code>, added <code>slackDisconnect()</code>.
+  Updated <code>isSlackConnected()</code> to check for "connected" instead of "logged in".</li>
+</ul>
+<h3 id="cicd">CI/CD<a class="headerlink" href="#cicd" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>release.yml</strong>: Removed <code>SLACK_CLIENT_ID</code>/<code>SLACK_CLIENT_SECRET</code> env vars
+  from the Build step. No longer needed since <code>env!()</code> macros are gone.</li>
+</ul>
+<h3 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>docs/slack-setup/index.md</strong>: Step-by-step setup guide.</li>
+<li><strong>docs/slack-setup/manifest.json</strong>: Slack app manifest for "Create from manifest".</li>
+<li><strong>mkdocs.yml</strong>: Added Slack Setup page to nav.</li>
+</ul>
+<h2 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>cargo fmt --all</code> — clean</li>
+<li><code>cargo clippy --workspace -- -D warnings</code> — zero warnings</li>
+<li><code>cargo test --workspace</code> — 105 tests pass (85 core + 20 CLI)</li>
 </ul>
 
 

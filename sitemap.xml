@@ -2,74 +2,86 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/development/architecture/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/development/contributing/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/getting-started/installation/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/getting-started/quickstart/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/plans/001-full-stack-scaffold/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/plans/002-ci-cd-setup/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/plans/003-github-pages/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/plans/004-dmg-release/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/plans/005-ux-overhaul/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/plans/006-app-bundle/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/plans/007-swiftui-gui/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/plans/008-animations-customization/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/plans/009-dual-ui-cli-completeness/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
+    </url>
+    <url>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/014-slack-integration-overhaul/</loc>
+         <lastmod>2026-03-06</lastmod>
+    </url>
+    <url>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/plans/015-streamlined-slack-setup/</loc>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/reference/cli/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/reference/daemon-api/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/reference/ffi/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
     </url>
     <url>
          <loc>https://wu-hongjun.github.io/OpenSilcky/reference/protocol/</loc>
-         <lastmod>2026-03-05</lastmod>
+         <lastmod>2026-03-06</lastmod>
+    </url>
+    <url>
+         <loc>https://wu-hongjun.github.io/OpenSilcky/slack-setup/</loc>
+         <lastmod>2026-03-06</lastmod>
     </url>
 </urlset>
