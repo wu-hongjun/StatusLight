@@ -213,7 +213,7 @@ impl Preset {
             Self::Available => Color::new(0, 255, 0),
             Self::Busy => Color::new(255, 0, 0),
             Self::Away => Color::new(255, 255, 0),
-            Self::InMeeting => Color::new(255, 69, 0),
+            Self::InMeeting => Color::new(255, 255, 255),
         }
     }
 
@@ -464,7 +464,7 @@ mod tests {
         assert_eq!(Preset::Red.color(), Color::new(255, 0, 0));
         assert_eq!(Preset::Green.color(), Color::new(0, 255, 0));
         assert_eq!(Preset::Blue.color(), Color::new(0, 0, 255));
-        assert_eq!(Preset::InMeeting.color(), Color::new(255, 69, 0));
+        assert_eq!(Preset::InMeeting.color(), Color::new(255, 255, 255));
         assert_eq!(Preset::Orange.color(), Color::new(255, 165, 0));
         assert_eq!(Preset::Purple.color(), Color::new(128, 0, 128));
     }
