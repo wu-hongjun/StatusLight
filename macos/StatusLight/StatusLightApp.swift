@@ -105,7 +105,14 @@ final class ViewModel: ObservableObject {
     @Published var showInDock: Bool = false {
         didSet {
             UserDefaults.standard.set(showInDock, forKey: "showInDock")
-            NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
+            let policy: NSApplication.ActivationPolicy = showInDock ? .regular : .accessory
+            // Changing activation policy at runtime can destroy the MenuBarExtra
+            // status item. Toggle to .prohibited first, then to the desired policy
+            // on the next run-loop tick so SwiftUI re-creates the status item.
+            NSApp.setActivationPolicy(.prohibited)
+            DispatchQueue.main.async {
+                NSApp.setActivationPolicy(policy)
+            }
         }
     }
     @Published var autoSyncSlack: Bool = false {
