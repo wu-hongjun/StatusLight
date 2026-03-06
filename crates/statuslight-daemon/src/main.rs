@@ -103,7 +103,10 @@ async fn main() -> Result<()> {
         opened
     })
     .await
-    .unwrap_or_default();
+    .unwrap_or_else(|e| {
+        log::warn!("Device enumeration task panicked at startup: {e}");
+        Vec::new()
+    });
 
     if !opened_devices.is_empty() {
         let mut devices_guard = state.inner.devices.lock().await;

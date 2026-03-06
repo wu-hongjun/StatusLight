@@ -205,7 +205,10 @@ async fn try_set_color(
             .map_err(|_| map_error(StatusLightError::DeviceNotFound))?
             .map_err(map_error)?;
         devices_guard = state.inner.devices.lock().await;
-        devices_guard.push(dev);
+        // Re-check after re-acquiring lock (another request may have reconnected).
+        if devices_guard.is_empty() {
+            devices_guard.push(dev);
+        }
     }
 
     // Track indices of failed devices for removal.
@@ -370,7 +373,10 @@ async fn get_devices() -> Result<Json<Vec<DeviceEntry>>, (StatusCode, Json<Error
         registry.enumerate_all()
     })
     .await
-    .unwrap_or_default();
+    .unwrap_or_else(|e| {
+        log::warn!("Device enumeration task panicked: {e}");
+        Vec::new()
+    });
     let entries: Vec<DeviceEntry> = all
         .into_iter()
         .map(|(_, d)| DeviceEntry {
@@ -400,7 +406,10 @@ async fn get_device_color(
             .map_err(|_| map_error(StatusLightError::DeviceNotFound))?
             .map_err(map_error)?;
         devices_guard = state.inner.devices.lock().await;
-        devices_guard.push(dev);
+        // Re-check after re-acquiring lock (another request may have reconnected).
+        if devices_guard.is_empty() {
+            devices_guard.push(dev);
+        }
     }
 
     // Find the target device.

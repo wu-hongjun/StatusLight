@@ -35,7 +35,11 @@ pub async fn start_button_poll(state: &AppState, interval_secs: u64, slack_sync:
                             .await;
                     match dev {
                         Ok(Ok(d)) => {
-                            state_clone.inner.devices.lock().await.push(d);
+                            // Re-check after re-acquiring lock (API may have reconnected).
+                            let mut devices = state_clone.inner.devices.lock().await;
+                            if devices.is_empty() {
+                                devices.push(d);
+                            }
                         }
                         _ => continue,
                     }
