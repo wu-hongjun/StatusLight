@@ -27,12 +27,20 @@ pub async fn start_button_poll(state: &AppState, interval_secs: u64, slack_sync:
 
             // Read the current color from the device.
             let color = {
-                let mut devices = state_clone.inner.devices.lock().await;
+                let devices = state_clone.inner.devices.lock().await;
                 if devices.is_empty() {
-                    if let Ok(dev) = DeviceRegistry::with_builtins().open_any() {
-                        devices.push(dev);
+                    drop(devices);
+                    let dev =
+                        tokio::task::spawn_blocking(|| DeviceRegistry::with_builtins().open_any())
+                            .await;
+                    match dev {
+                        Ok(Ok(d)) => {
+                            state_clone.inner.devices.lock().await.push(d);
+                        }
+                        _ => continue,
                     }
                 }
+                let devices = state_clone.inner.devices.lock().await;
                 if devices.is_empty() {
                     continue;
                 }

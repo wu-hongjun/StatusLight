@@ -71,12 +71,14 @@ async fn main() -> Result<()> {
         .store(config.brightness.min(100), Ordering::SeqCst);
 
     // Enumerate and open all devices at startup.
-    let registry = statuslight_core::DeviceRegistry::with_builtins();
-    let all_devices = registry.enumerate_all();
-    if all_devices.is_empty() {
-        log::warn!("No devices at startup (will retry on requests)");
-    } else {
-        let mut devices_guard = state.inner.devices.lock().await;
+    let opened_devices = tokio::task::spawn_blocking(|| {
+        let registry = statuslight_core::DeviceRegistry::with_builtins();
+        let all_devices = registry.enumerate_all();
+        if all_devices.is_empty() {
+            log::warn!("No devices at startup (will retry on requests)");
+            return Vec::new();
+        }
+        let mut opened: Vec<Box<dyn statuslight_core::StatusLightDevice>> = Vec::new();
         for (driver_id, info) in &all_devices {
             let serial = info.serial.as_deref();
             match registry.open(driver_id, serial) {
@@ -87,7 +89,7 @@ async fn main() -> Result<()> {
                         driver_id,
                         serial
                     );
-                    devices_guard.push(dev);
+                    opened.push(dev);
                 }
                 Err(e) => {
                     log::warn!(
@@ -97,6 +99,16 @@ async fn main() -> Result<()> {
                     );
                 }
             }
+        }
+        opened
+    })
+    .await
+    .unwrap_or_default();
+
+    if !opened_devices.is_empty() {
+        let mut devices_guard = state.inner.devices.lock().await;
+        for dev in opened_devices {
+            devices_guard.push(dev);
         }
         log::info!("{} device(s) opened at startup", devices_guard.len());
     }

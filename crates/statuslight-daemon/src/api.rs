@@ -199,11 +199,13 @@ async fn try_set_color(
 
     // Try to reconnect if no devices are held.
     if devices_guard.is_empty() {
-        let registry = DeviceRegistry::with_builtins();
-        match registry.open_any() {
-            Ok(dev) => devices_guard.push(dev),
-            Err(e) => return Err(map_error(e)),
-        }
+        drop(devices_guard);
+        let dev = tokio::task::spawn_blocking(|| DeviceRegistry::with_builtins().open_any())
+            .await
+            .map_err(|_| map_error(StatusLightError::DeviceNotFound))?
+            .map_err(map_error)?;
+        devices_guard = state.inner.devices.lock().await;
+        devices_guard.push(dev);
     }
 
     // Track indices of failed devices for removal.
@@ -363,8 +365,12 @@ async fn get_presets() -> impl IntoResponse {
 }
 
 async fn get_devices() -> Result<Json<Vec<DeviceEntry>>, (StatusCode, Json<ErrorResponse>)> {
-    let registry = DeviceRegistry::with_builtins();
-    let all = registry.enumerate_all();
+    let all = tokio::task::spawn_blocking(|| {
+        let registry = DeviceRegistry::with_builtins();
+        registry.enumerate_all()
+    })
+    .await
+    .unwrap_or_default();
     let entries: Vec<DeviceEntry> = all
         .into_iter()
         .map(|(_, d)| DeviceEntry {
@@ -388,11 +394,13 @@ async fn get_device_color(
 
     // Reconnect if no devices are held.
     if devices_guard.is_empty() {
-        let registry = DeviceRegistry::with_builtins();
-        match registry.open_any() {
-            Ok(dev) => devices_guard.push(dev),
-            Err(e) => return Err(map_error(e)),
-        }
+        drop(devices_guard);
+        let dev = tokio::task::spawn_blocking(|| DeviceRegistry::with_builtins().open_any())
+            .await
+            .map_err(|_| map_error(StatusLightError::DeviceNotFound))?
+            .map_err(map_error)?;
+        devices_guard = state.inner.devices.lock().await;
+        devices_guard.push(dev);
     }
 
     // Find the target device.
