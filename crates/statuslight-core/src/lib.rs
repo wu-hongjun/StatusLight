@@ -1,7 +1,8 @@
-//! `slicky-core` — Core library for controlling Slicky USB status lights.
+//! `statuslight-core` — Core library for controlling USB status lights.
 //!
 //! Provides color definitions, HID protocol encoding, and device communication
-//! for Lexcelon Slicky-1.0 USB status lights (VID 0x04D8, PID 0xEC24).
+//! for USB status lights. Includes the Slicky driver for Lexcelon Slicky-1.0
+//! devices (VID 0x04D8, PID 0xEC24).
 
 pub mod animation;
 pub mod color;
@@ -13,5 +14,5 @@ pub mod protocol;
 pub use animation::AnimationType;
 pub use color::{Color, Preset};
 pub use config::{Config, CustomPreset, SlackRule};
-pub use device::{DeviceInfo, HidSlickyDevice, SlickyDevice};
-pub use error::{Result, SlickyError};
+pub use device::{DeviceInfo, HidSlickyDevice, StatusLightDevice};
+pub use error::{Result, StatusLightError};

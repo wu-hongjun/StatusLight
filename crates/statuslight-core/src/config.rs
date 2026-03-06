@@ -1,4 +1,4 @@
-//! Persistent configuration stored at `~/.config/openslicky/config.toml`.
+//! Persistent configuration stored at `~/.config/statuslight/config.toml`.
 
 use std::collections::HashMap;
 use std::fs;
@@ -154,9 +154,9 @@ impl Default for UpdateConfig {
 }
 
 impl Config {
-    /// Returns `~/.config/openslicky/config.toml`.
+    /// Returns `~/.config/statuslight/config.toml`.
     pub fn path() -> Option<PathBuf> {
-        dirs::config_dir().map(|d| d.join("openslicky").join("config.toml"))
+        dirs::config_dir().map(|d| d.join("statuslight").join("config.toml"))
     }
 
     /// Load config from disk, returning `Default` if the file doesn't exist.
@@ -227,13 +227,13 @@ mod tests {
     #[test]
     fn config_path_is_under_config_dir() {
         if let Some(path) = Config::path() {
-            assert!(path.ends_with("openslicky/config.toml"));
+            assert!(path.ends_with("statuslight/config.toml"));
         }
     }
 
     #[test]
     fn save_and_load_round_trip() {
-        let dir = std::env::temp_dir().join("openslicky-test-round-trip");
+        let dir = std::env::temp_dir().join("statuslight-test-round-trip");
         let path = dir.join("config.toml");
         let _ = std::fs::remove_dir_all(&dir);
 
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn load_missing_file_returns_default() {
         let path = std::env::temp_dir()
-            .join("openslicky-test-missing")
+            .join("statuslight-test-missing")
             .join("config.toml");
         let _ = std::fs::remove_file(&path);
 
@@ -308,7 +308,7 @@ user_token = "xoxp-partial"
 
     #[test]
     fn legacy_token_migration() {
-        let dir = std::env::temp_dir().join("openslicky-test-migration");
+        let dir = std::env::temp_dir().join("statuslight-test-migration");
         let path = dir.join("config.toml");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -374,7 +374,7 @@ auto_check = false
     #[cfg(unix)]
     #[test]
     fn save_sets_restrictive_permissions() {
-        let dir = std::env::temp_dir().join("openslicky-test-perms");
+        let dir = std::env::temp_dir().join("statuslight-test-perms");
         let path = dir.join("config.toml");
         let _ = std::fs::remove_dir_all(&dir);
 
@@ -391,16 +391,16 @@ auto_check = false
     #[test]
     fn save_creates_parent_directories() {
         let dir = std::env::temp_dir()
-            .join("openslicky-test-mkdir")
+            .join("statuslight-test-mkdir")
             .join("nested");
         let path = dir.join("config.toml");
-        let _ = std::fs::remove_dir_all(std::env::temp_dir().join("openslicky-test-mkdir"));
+        let _ = std::fs::remove_dir_all(std::env::temp_dir().join("statuslight-test-mkdir"));
 
         let config = Config::default();
         config.save_to(&path).expect("save failed");
         assert!(path.exists());
 
-        let _ = std::fs::remove_dir_all(std::env::temp_dir().join("openslicky-test-mkdir"));
+        let _ = std::fs::remove_dir_all(std::env::temp_dir().join("statuslight-test-mkdir"));
     }
 
     #[test]
@@ -451,7 +451,7 @@ speed = 1.5
 
     #[test]
     fn custom_preset_round_trip() {
-        let dir = std::env::temp_dir().join("openslicky-test-custom-presets");
+        let dir = std::env::temp_dir().join("statuslight-test-custom-presets");
         let path = dir.join("config.toml");
         let _ = std::fs::remove_dir_all(&dir);
 

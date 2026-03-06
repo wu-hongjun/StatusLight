@@ -5,14 +5,14 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::{Result, SlickyError};
+use crate::error::{Result, StatusLightError};
 
 /// An RGB color with each channel 0–255.
 ///
 /// # Examples
 ///
 /// ```
-/// use slicky_core::Color;
+/// use statuslight_core::Color;
 ///
 /// let red = Color::new(255, 0, 0);
 /// assert_eq!(red.to_hex(), "#FF0000");
@@ -42,7 +42,7 @@ impl Color {
     /// # Examples
     ///
     /// ```
-    /// use slicky_core::Color;
+    /// use statuslight_core::Color;
     ///
     /// let red = Color::from_hex("#FF0000").unwrap();
     /// assert_eq!(red, Color::new(255, 0, 0));
@@ -55,27 +55,27 @@ impl Color {
         match hex.len() {
             6 => {
                 let r = u8::from_str_radix(&hex[0..2], 16)
-                    .map_err(|_| SlickyError::InvalidHexColor(s.to_string()))?;
+                    .map_err(|_| StatusLightError::InvalidHexColor(s.to_string()))?;
                 let g = u8::from_str_radix(&hex[2..4], 16)
-                    .map_err(|_| SlickyError::InvalidHexColor(s.to_string()))?;
+                    .map_err(|_| StatusLightError::InvalidHexColor(s.to_string()))?;
                 let b = u8::from_str_radix(&hex[4..6], 16)
-                    .map_err(|_| SlickyError::InvalidHexColor(s.to_string()))?;
+                    .map_err(|_| StatusLightError::InvalidHexColor(s.to_string()))?;
                 Ok(Self { r, g, b })
             }
             3 => {
                 let r = u8::from_str_radix(&hex[0..1], 16)
-                    .map_err(|_| SlickyError::InvalidHexColor(s.to_string()))?;
+                    .map_err(|_| StatusLightError::InvalidHexColor(s.to_string()))?;
                 let g = u8::from_str_radix(&hex[1..2], 16)
-                    .map_err(|_| SlickyError::InvalidHexColor(s.to_string()))?;
+                    .map_err(|_| StatusLightError::InvalidHexColor(s.to_string()))?;
                 let b = u8::from_str_radix(&hex[2..3], 16)
-                    .map_err(|_| SlickyError::InvalidHexColor(s.to_string()))?;
+                    .map_err(|_| StatusLightError::InvalidHexColor(s.to_string()))?;
                 Ok(Self {
                     r: r * 17,
                     g: g * 17,
                     b: b * 17,
                 })
             }
-            _ => Err(SlickyError::InvalidHexColor(s.to_string())),
+            _ => Err(StatusLightError::InvalidHexColor(s.to_string())),
         }
     }
 
@@ -158,7 +158,7 @@ impl fmt::Display for Color {
 /// # Examples
 ///
 /// ```
-/// use slicky_core::Preset;
+/// use statuslight_core::Preset;
 ///
 /// let p = Preset::from_name("in-meeting").unwrap();
 /// assert_eq!(p, Preset::InMeeting);
@@ -227,7 +227,7 @@ impl Preset {
     /// # Examples
     ///
     /// ```
-    /// use slicky_core::Preset;
+    /// use statuslight_core::Preset;
     ///
     /// assert_eq!(Preset::from_name("RED").unwrap(), Preset::Red);
     /// assert_eq!(Preset::from_name("in-meeting").unwrap(), Preset::InMeeting);
@@ -249,7 +249,7 @@ impl Preset {
             "busy" => Ok(Self::Busy),
             "away" => Ok(Self::Away),
             "inmeeting" => Ok(Self::InMeeting),
-            _ => Err(SlickyError::UnknownPreset(s.to_string())),
+            _ => Err(StatusLightError::UnknownPreset(s.to_string())),
         }
     }
 

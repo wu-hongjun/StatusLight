@@ -1,15 +1,16 @@
-//! Device abstraction and HID communication for Slicky lights.
+//! Device abstraction and HID communication for status lights.
 //!
-//! The [`SlickyDevice`] trait defines the interface for controlling a Slicky
-//! device. [`HidSlickyDevice`] provides the real HID-backed implementation.
-//! Unit testing the HID layer requires a physical device and is done manually.
+//! The [`StatusLightDevice`] trait defines the interface for controlling a
+//! status light device. [`HidSlickyDevice`] provides the Slicky HID-backed
+//! implementation. Unit testing the HID layer requires a physical device and
+//! is done manually.
 
 use crate::color::Color;
-use crate::error::{Result, SlickyError};
+use crate::error::{Result, StatusLightError};
 use crate::protocol::{self, BUFFER_SIZE, PRODUCT_ID, VENDOR_ID};
 
-/// Trait for controlling a Slicky device. Enables mocking in tests.
-pub trait SlickyDevice {
+/// Trait for controlling a status light device. Enables mocking in tests.
+pub trait StatusLightDevice {
     /// Set the device to the given color.
     fn set_color(&self, color: Color) -> Result<()>;
 
@@ -19,7 +20,7 @@ pub trait SlickyDevice {
     }
 }
 
-/// Info about a connected Slicky device (from enumeration).
+/// Info about a connected device (from enumeration).
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {
     /// OS-specific device path.
@@ -40,8 +41,8 @@ pub struct HidSlickyDevice {
 impl HidSlickyDevice {
     /// Open the first Slicky device found on the USB bus.
     ///
-    /// Returns [`SlickyError::DeviceNotFound`] if no device is connected,
-    /// or [`SlickyError::MultipleDevices`] if more than one is found.
+    /// Returns [`StatusLightError::DeviceNotFound`] if no device is connected,
+    /// or [`StatusLightError::MultipleDevices`] if more than one is found.
     pub fn open() -> Result<Self> {
         let api = hidapi::HidApi::new()?;
         let devices: Vec<_> = api
@@ -50,12 +51,12 @@ impl HidSlickyDevice {
             .collect();
 
         match devices.len() {
-            0 => Err(SlickyError::DeviceNotFound),
+            0 => Err(StatusLightError::DeviceNotFound),
             1 => {
                 let device = devices[0].open_device(&api)?;
                 Ok(Self { device })
             }
-            count => Err(SlickyError::MultipleDevices { count }),
+            count => Err(StatusLightError::MultipleDevices { count }),
         }
     }
 
@@ -69,7 +70,7 @@ impl HidSlickyDevice {
                     && d.product_id() == PRODUCT_ID
                     && d.serial_number().is_some_and(|s| s == serial)
             })
-            .ok_or(SlickyError::DeviceNotFound)?;
+            .ok_or(StatusLightError::DeviceNotFound)?;
 
         let device = info.open_device(&api)?;
         Ok(Self { device })
@@ -92,12 +93,12 @@ impl HidSlickyDevice {
     }
 }
 
-impl SlickyDevice for HidSlickyDevice {
+impl StatusLightDevice for HidSlickyDevice {
     fn set_color(&self, color: Color) -> Result<()> {
         let report = protocol::build_set_color_report(color);
         let written = self.device.write(&report)?;
         if written != BUFFER_SIZE {
-            return Err(SlickyError::WriteMismatch {
+            return Err(StatusLightError::WriteMismatch {
                 expected: BUFFER_SIZE,
                 actual: written,
             });

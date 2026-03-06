@@ -1,13 +1,13 @@
-//! Error types for slicky-core.
+//! Error types for statuslight-core.
 
-/// All errors that can occur in slicky-core operations.
+/// All errors that can occur in statuslight-core operations.
 #[derive(Debug, thiserror::Error)]
-pub enum SlickyError {
-    /// No Slicky device was found on the USB bus.
+pub enum StatusLightError {
+    /// No device was found on the USB bus.
     #[error("no Slicky device found (VID=0x04D8, PID=0xEC24)")]
     DeviceNotFound,
 
-    /// Multiple Slicky devices found; a serial number is required to disambiguate.
+    /// Multiple devices found; a serial number is required to disambiguate.
     #[error("multiple Slicky devices found ({count}); specify a serial number")]
     MultipleDevices { count: usize },
 
@@ -36,5 +36,5 @@ pub enum SlickyError {
     PresetNotFound(String),
 }
 
-/// A type alias for `Result<T, SlickyError>`.
-pub type Result<T> = std::result::Result<T, SlickyError>;
+/// A type alias for `Result<T, StatusLightError>`.
+pub type Result<T> = std::result::Result<T, StatusLightError>;
