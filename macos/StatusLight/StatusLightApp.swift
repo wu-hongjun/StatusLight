@@ -639,6 +639,14 @@ struct PopoverContent: View {
             }
         }
         .frame(width: 340)
+        .onAppear {
+            // MenuBarExtra panels don't become key window by default,
+            // causing toggles and buttons to render in inactive (grey) style.
+            DispatchQueue.main.async {
+                NSApp.keyWindow?.makeKey()
+                    ?? NSApp.windows.first(where: { $0.isVisible })?.makeKeyAndOrderFront(nil)
+            }
+        }
     }
 }
 
@@ -1054,6 +1062,9 @@ struct ColorGridSection: View {
         ("purple", "Purple", Color(red: 0.5, green: 0, blue: 0.5)),
         ("magenta", "Magenta", Color(red: 1, green: 0, blue: 1)),
         ("white", "White", Color(red: 1, green: 1, blue: 1)),
+        ("pink", "Pink", Color(red: 1, green: 0.4, blue: 0.7)),
+        ("teal", "Teal", Color(red: 0, green: 0.5, blue: 0.5)),
+        ("lime", "Lime", Color(red: 0.5, green: 1, blue: 0)),
     ]
 
     private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
@@ -1750,14 +1761,15 @@ struct FooterSection: View {
     @State private var showUninstallConfirm = false
 
     var body: some View {
-        HStack {
-            Text("StatusLight v\(vm.cli.appVersion)")
-                .font(.caption2)
-                .foregroundColor(.secondary)
+        VStack(spacing: 4) {
+            HStack {
+                Text("StatusLight v\(vm.cli.appVersion)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
 
-            Spacer()
+                Spacer()
 
-            Button("Uninstall") {
+                Button("Uninstall") {
                 showUninstallConfirm = true
             }
             .font(.caption2)
@@ -1771,6 +1783,10 @@ struct FooterSection: View {
             } message: {
                 Text("This will remove CLI symlinks and disable startup. Your configuration will be preserved.")
             }
+            }
+            Text("StatusLight by Hongjun Wu")
+                .font(.caption2)
+                .foregroundColor(.secondary)
         }
     }
 }
@@ -1788,6 +1804,9 @@ func colorForPreset(_ name: String) -> Color {
     case "white": return Color(red: 1, green: 1, blue: 1)
     case "orange": return Color(red: 1, green: 0.65, blue: 0)
     case "purple": return Color(red: 0.5, green: 0, blue: 0.5)
+    case "pink": return Color(red: 1, green: 0.4, blue: 0.7)
+    case "teal": return Color(red: 0, green: 0.5, blue: 0.5)
+    case "lime": return Color(red: 0.5, green: 1, blue: 0)
     case "in-meeting": return Color(red: 1, green: 1, blue: 1)
     default: return Color.gray
     }

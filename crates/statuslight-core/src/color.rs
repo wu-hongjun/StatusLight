@@ -174,6 +174,9 @@ pub enum Preset {
     White,
     Orange,
     Purple,
+    Pink,
+    Teal,
+    Lime,
     Available,
     Busy,
     Away,
@@ -191,6 +194,9 @@ const ALL_PRESETS: &[Preset] = &[
     Preset::White,
     Preset::Orange,
     Preset::Purple,
+    Preset::Pink,
+    Preset::Teal,
+    Preset::Lime,
     Preset::Available,
     Preset::Busy,
     Preset::Away,
@@ -210,6 +216,9 @@ impl Preset {
             Self::White => Color::new(255, 255, 255),
             Self::Orange => Color::new(255, 165, 0),
             Self::Purple => Color::new(128, 0, 128),
+            Self::Pink => Color::new(255, 102, 178),
+            Self::Teal => Color::new(0, 128, 128),
+            Self::Lime => Color::new(128, 255, 0),
             Self::Available => Color::new(0, 255, 0),
             Self::Busy => Color::new(255, 0, 0),
             Self::Away => Color::new(255, 255, 0),
@@ -245,6 +254,9 @@ impl Preset {
             "white" => Ok(Self::White),
             "orange" => Ok(Self::Orange),
             "purple" => Ok(Self::Purple),
+            "pink" => Ok(Self::Pink),
+            "teal" => Ok(Self::Teal),
+            "lime" => Ok(Self::Lime),
             "available" => Ok(Self::Available),
             "busy" => Ok(Self::Busy),
             "away" => Ok(Self::Away),
@@ -278,6 +290,9 @@ impl Preset {
             Self::White => "white",
             Self::Orange => "orange",
             Self::Purple => "purple",
+            Self::Pink => "pink",
+            Self::Teal => "teal",
+            Self::Lime => "lime",
             Self::Available => "available",
             Self::Busy => "busy",
             Self::Away => "away",
@@ -447,7 +462,7 @@ mod tests {
 
     #[test]
     fn preset_all_variants() {
-        assert_eq!(Preset::all().len(), 13, "should have 13 presets");
+        assert_eq!(Preset::all().len(), 16, "should have 16 presets");
     }
 
     #[test]
