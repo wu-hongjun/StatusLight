@@ -24,6 +24,7 @@ pub fn router(state: AppState) -> Router {
         .route("/presets", get(get_presets))
         .route("/devices", get(get_devices))
         .route("/device-color", get(get_device_color))
+        .route("/button-status", get(get_button_status))
         .route("/slack/status", get(get_slack_status))
         .route("/slack/configure", post(post_slack_configure))
         .route("/slack/enable", post(post_slack_enable))
@@ -148,6 +149,14 @@ struct SlackConfigureResponse {
 #[derive(Serialize)]
 struct SlackEnableResponse {
     enabled: bool,
+}
+
+#[derive(Serialize)]
+struct ButtonStatusResponse {
+    detected_preset: Option<String>,
+    device_color: Option<ColorResponse>,
+    polling_enabled: bool,
+    slack_sync: bool,
 }
 
 // --- Error mapping ---
@@ -407,6 +416,31 @@ async fn get_device_color(
         })),
         Some(Err(e)) => Err(map_error(e)),
     }
+}
+
+async fn get_button_status(State(state): State<AppState>) -> impl IntoResponse {
+    let current = *state.inner.current_color.lock().await;
+    let config = tokio::task::spawn_blocking(statuslight_core::Config::load)
+        .await
+        .unwrap_or_else(|e| {
+            log::warn!("spawn_blocking panicked: {e}");
+            Ok(statuslight_core::Config::default())
+        })
+        .unwrap_or_else(|e| {
+            log::warn!("Config::load failed: {e}");
+            statuslight_core::Config::default()
+        });
+
+    let detected_preset = current
+        .and_then(statuslight_core::protocol::button_cycle_preset)
+        .map(String::from);
+
+    Json(ButtonStatusResponse {
+        detected_preset,
+        device_color: current.map(ColorResponse::from),
+        polling_enabled: config.button.enabled,
+        slack_sync: config.button.slack_sync,
+    })
 }
 
 async fn get_slack_status(State(state): State<AppState>) -> impl IntoResponse {
