@@ -11,11 +11,11 @@ use tokio::task::JoinHandle;
 /// Shared state passed to all axum route handlers.
 #[derive(Clone)]
 pub struct AppState {
-    pub inner: Arc<AppStateInner>,
+    pub(crate) inner: Arc<AppStateInner>,
 }
 
 /// The inner state protected by `Arc`.
-pub struct AppStateInner {
+pub(crate) struct AppStateInner {
     /// All open device handles. Empty if no devices are connected.
     /// `Mutex` because `HidDevice` is `Send` but not `Sync`.
     pub(crate) devices: Mutex<Vec<Box<dyn StatusLightDevice>>>,

@@ -85,7 +85,6 @@ impl DeviceRegistry {
     /// immediately.
     pub fn open_any(&self) -> Result<Box<dyn StatusLightDevice>> {
         let api = hidapi::HidApi::new()?;
-        let last_error = StatusLightError::DeviceNotFound;
         for driver in &self.drivers {
             match driver.open(&api) {
                 Ok(device) => return Ok(device),
@@ -93,7 +92,7 @@ impl DeviceRegistry {
                 Err(e) => return Err(e),
             }
         }
-        Err(last_error)
+        Err(StatusLightError::DeviceNotFound)
     }
 
     /// Open a device by driver ID and optional serial number.
