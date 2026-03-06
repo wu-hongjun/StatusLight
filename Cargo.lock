@@ -1724,73 +1724,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
-name = "slicky-cli"
-version = "0.1.5"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "ctrlc",
- "dirs",
- "env_logger",
- "log",
- "open",
- "semver",
- "serde",
- "serde_json",
- "slicky-core",
- "toml",
- "ureq",
-]
-
-[[package]]
-name = "slicky-core"
-version = "0.1.5"
-dependencies = [
- "anyhow",
- "chrono",
- "dirs",
- "hidapi",
- "log",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "toml",
-]
-
-[[package]]
-name = "slicky-daemon"
-version = "0.1.5"
-dependencies = [
- "anyhow",
- "axum",
- "chrono",
- "clap",
- "env_logger",
- "futures-util",
- "hyper-util",
- "log",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "slicky-core",
- "tokio",
- "tokio-tungstenite",
- "tower",
-]
-
-[[package]]
-name = "slicky-ffi"
-version = "0.1.5"
-dependencies = [
- "cbindgen",
- "env_logger",
- "log",
- "slicky-core",
-]
-
-[[package]]
 name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1811,6 +1744,73 @@ name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
+
+[[package]]
+name = "statuslight-cli"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "ctrlc",
+ "dirs",
+ "env_logger",
+ "log",
+ "open",
+ "semver",
+ "serde",
+ "serde_json",
+ "statuslight-core",
+ "toml",
+ "ureq",
+]
+
+[[package]]
+name = "statuslight-core"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dirs",
+ "hidapi",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "toml",
+]
+
+[[package]]
+name = "statuslight-daemon"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "clap",
+ "env_logger",
+ "futures-util",
+ "hyper-util",
+ "log",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "statuslight-core",
+ "tokio",
+ "tokio-tungstenite",
+ "tower",
+]
+
+[[package]]
+name = "statuslight-ffi"
+version = "0.1.5"
+dependencies = [
+ "cbindgen",
+ "env_logger",
+ "log",
+ "statuslight-core",
+]
 
 [[package]]
 name = "strsim"
