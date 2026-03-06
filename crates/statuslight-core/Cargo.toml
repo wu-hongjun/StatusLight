@@ -1,5 +1,5 @@
 [package]
-name = "slicky-core"
+name = "statuslight-core"
 version = "0.1.5"
 edition = "2021"
 

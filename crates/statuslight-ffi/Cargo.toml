@@ -1,13 +1,14 @@
 [package]
-name = "slicky-ffi"
+name = "statuslight-ffi"
 version = "0.1.5"
 edition = "2021"
 
 [lib]
+name = "statuslight_ffi"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-slicky-core = { path = "../slicky-core" }
+statuslight-core = { path = "../statuslight-core" }
 log = { workspace = true }
 env_logger = { workspace = true }
 

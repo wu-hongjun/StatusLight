@@ -1,14 +1,14 @@
 [package]
-name = "slicky-daemon"
+name = "statuslight-daemon"
 version = "0.1.5"
 edition = "2021"
 
 [[bin]]
-name = "slickyd"
+name = "statuslightd"
 path = "src/main.rs"
 
 [dependencies]
-slicky-core = { path = "../slicky-core" }
+statuslight-core = { path = "../statuslight-core" }
 axum = { workspace = true }
 tokio = { workspace = true }
 hyper-util = { workspace = true }
