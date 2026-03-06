@@ -11,7 +11,7 @@ final class StatusLightCLI {
     init() {
         let execURL = Bundle.main.executableURL!
         let macosDir = execURL.deletingLastPathComponent()
-        self.binaryPath = macosDir.appendingPathComponent("statuslight").path
+        self.binaryPath = macosDir.appendingPathComponent("statuslight-cli").path
     }
 
     // MARK: - Light Control
@@ -159,7 +159,7 @@ final class StatusLightCLI {
     /// Install update with admin privileges (fallback when normal install fails due to permissions).
     func installUpdateAdmin() -> Bool {
         let macosDir = shellEscape(URL(fileURLWithPath: binaryPath).deletingLastPathComponent().path)
-        let script = "'\(macosDir)/statuslight' update install"
+        let script = "'\(macosDir)/statuslight-cli' update install"
         return runOsascriptAdmin(script)
     }
 
@@ -168,7 +168,7 @@ final class StatusLightCLI {
     /// Create symlinks in /usr/local/bin (requires admin).
     func installSymlinks() -> Bool {
         let macosDir = shellEscape(URL(fileURLWithPath: binaryPath).deletingLastPathComponent().path)
-        let script = "mkdir -p /usr/local/bin && ln -sf '\(macosDir)/statuslight' /usr/local/bin/statuslight && ln -sf '\(macosDir)/statuslightd' /usr/local/bin/statuslightd"
+        let script = "mkdir -p /usr/local/bin && ln -sf '\(macosDir)/statuslight-cli' /usr/local/bin/statuslight && ln -sf '\(macosDir)/statuslightd' /usr/local/bin/statuslightd"
         return runOsascriptAdmin(script)
     }
 

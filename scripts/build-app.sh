@@ -26,13 +26,19 @@ rm -rf "$APP"
 mkdir -p "$MACOS_DIR"
 
 # --- Copy binaries --------------------------------------------------------
+# The CLI binary is renamed to statuslight-cli inside the bundle to avoid a
+# case-insensitive collision with the SwiftUI launcher binary (StatusLight).
 for bin in statuslight statuslightd; do
   src="$REPO_ROOT/target/release/$bin"
   if [[ ! -f "$src" ]]; then
     echo "ERROR: $src not found. Run 'cargo build --workspace --release' first." >&2
     exit 1
   fi
-  cp "$src" "$MACOS_DIR/$bin"
+  dest_name="$bin"
+  if [[ "$bin" == "statuslight" ]]; then
+    dest_name="statuslight-cli"
+  fi
+  cp "$src" "$MACOS_DIR/$dest_name"
 done
 
 # --- Info.plist -----------------------------------------------------------
