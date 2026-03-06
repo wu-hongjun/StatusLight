@@ -102,12 +102,23 @@ async fn main() -> Result<()> {
 
     // Configure Slack state from config. Encrypted token store takes priority over TOML config;
     // CLI --slack-app-token (deprecated) takes highest priority for app_token.
+    // Load all encrypted tokens in a single I/O pass.
+    let stored_tokens = crate::token_store::load_tokens().unwrap_or_else(|e| {
+        log::warn!("Failed to load encrypted token store: {e}");
+        std::collections::HashMap::new()
+    });
     let app_token = args
         .slack_app_token
-        .or_else(|| crate::token_store::load_token("slack_app_token"))
+        .or_else(|| stored_tokens.get("slack_app_token").cloned())
         .or(config.slack.app_token);
-    let bot_token = crate::token_store::load_token("slack_bot_token").or(config.slack.bot_token);
-    let user_token = crate::token_store::load_token("slack_user_token").or(config.slack.user_token);
+    let bot_token = stored_tokens
+        .get("slack_bot_token")
+        .cloned()
+        .or(config.slack.bot_token);
+    let user_token = stored_tokens
+        .get("slack_user_token")
+        .cloned()
+        .or(config.slack.user_token);
 
     // Build emoji_colors map — config stores hex strings directly.
     let emoji_colors = config.slack.emoji_colors;

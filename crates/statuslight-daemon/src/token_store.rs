@@ -99,15 +99,30 @@ fn write_tokens(tokens: &HashMap<String, String>) -> Result<()> {
     let encoded = general_purpose::STANDARD.encode(&output);
 
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create config dir {}", parent.display()))?;
     }
-    std::fs::write(&path, encoded)?;
 
-    // Restrict permissions to owner-read/write only.
+    // Write with restricted permissions from the start to avoid TOCTOU.
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&path)
+            .with_context(|| format!("failed to create token file {}", path.display()))?;
+        file.write_all(encoded.as_bytes())
+            .with_context(|| format!("failed to write token file {}", path.display()))?;
+    }
+
+    #[cfg(not(unix))]
+    {
+        std::fs::write(&path, &encoded)
+            .with_context(|| format!("failed to write token file {}", path.display()))?;
     }
 
     Ok(())
@@ -117,8 +132,8 @@ fn write_tokens(tokens: &HashMap<String, String>) -> Result<()> {
 ///
 /// Passing an empty string for a value removes that key.
 pub fn store_tokens(new_tokens: &HashMap<String, String>) -> Result<()> {
-    // Merge with existing tokens.
-    let mut tokens = load_tokens().unwrap_or_default();
+    // Merge with existing tokens (propagate errors to avoid silently losing data).
+    let mut tokens = load_tokens().context("failed to load existing tokens for merge")?;
     for (k, v) in new_tokens {
         if v.is_empty() {
             tokens.remove(k);
@@ -126,36 +141,5 @@ pub fn store_tokens(new_tokens: &HashMap<String, String>) -> Result<()> {
             tokens.insert(k.clone(), v.clone());
         }
     }
-    write_tokens(&tokens)
-}
-
-/// Load a single token by key. Returns `None` if not found or on error.
-pub fn load_token(key: &str) -> Option<String> {
-    load_tokens()
-        .ok()
-        .and_then(|tokens| tokens.get(key).cloned())
-}
-
-/// Store a single token by key.
-#[allow(dead_code)]
-pub fn store_token(key: &str, value: &str) -> Result<()> {
-    let mut tokens = HashMap::new();
-    tokens.insert(key.to_string(), value.to_string());
-    store_tokens(&tokens)
-}
-
-/// Delete a single token by key.
-#[allow(dead_code)]
-pub fn delete_token(key: &str) -> Result<()> {
-    let path = token_path().context("cannot determine config dir")?;
-    let mut tokens = load_tokens().unwrap_or_default();
-    tokens.remove(key);
-
-    if tokens.is_empty() {
-        // Nothing left — remove the file entirely.
-        let _ = std::fs::remove_file(&path);
-        return Ok(());
-    }
-
     write_tokens(&tokens)
 }

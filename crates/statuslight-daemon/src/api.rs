@@ -499,6 +499,7 @@ async fn post_slack_configure(
     }
 
     // Persist tokens to the encrypted store (if any were provided).
+    // Uses spawn_blocking because token I/O is synchronous.
     {
         let mut tokens_to_store = std::collections::HashMap::new();
         if let Some(ref token) = req.app_token {
@@ -511,8 +512,28 @@ async fn post_slack_configure(
             tokens_to_store.insert("slack_user_token".to_string(), token.clone());
         }
         if !tokens_to_store.is_empty() {
-            if let Err(e) = crate::token_store::store_tokens(&tokens_to_store) {
-                log::warn!("Failed to store tokens in encrypted store: {e}");
+            let store_result = tokio::task::spawn_blocking(move || {
+                crate::token_store::store_tokens(&tokens_to_store)
+            })
+            .await;
+            match store_result {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => {
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse {
+                            error: format!("failed to persist tokens: {e}"),
+                        }),
+                    ));
+                }
+                Err(e) => {
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse {
+                            error: format!("token store task panicked: {e}"),
+                        }),
+                    ));
+                }
             }
         }
     }
