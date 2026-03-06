@@ -20,7 +20,7 @@ log = "0.4"
 env_logger = "0.11"
 
 # Device communication
-hidapi = "2"
+hidapi = { version = "2", features = ["macos-shared-device"] }
 
 # CLI
 clap = { version = "4", features = ["derive"] }
