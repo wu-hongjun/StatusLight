@@ -247,6 +247,12 @@ impl Config {
                                 old_dir.display(),
                                 new_dir.display()
                             );
+                            if let Err(e) = std::fs::remove_dir_all(&old_dir) {
+                                log::warn!(
+                                    "could not remove old config directory {}: {e}",
+                                    old_dir.display()
+                                );
+                            }
                         }
                     } else {
                         log::info!(
@@ -254,6 +260,12 @@ impl Config {
                             old_dir.display(),
                             new_dir.display()
                         );
+                        if let Err(e) = std::fs::remove_dir_all(&old_dir) {
+                            log::warn!(
+                                "could not remove old config directory {}: {e}",
+                                old_dir.display()
+                            );
+                        }
                     }
                 }
             }

@@ -11,6 +11,13 @@ use crate::error::{Result, StatusLightError};
 use crate::protocol::{self, BUFFER_SIZE, PRODUCT_ID, VENDOR_ID};
 
 /// Trait for controlling a status light device. Enables mocking in tests.
+///
+/// # Thread Safety
+///
+/// This trait requires `Send` but intentionally does **not** require `Sync`.
+/// `hidapi::HidDevice` is `Send` but not `Sync`, so requiring `Sync` would
+/// force every driver to wrap its device handle in a `Mutex`, adding
+/// unnecessary complexity when the daemon already serializes access.
 pub trait StatusLightDevice: Send {
     /// Human-readable driver name (e.g. "Slicky", "Arduino RGB").
     fn driver_name(&self) -> &str {

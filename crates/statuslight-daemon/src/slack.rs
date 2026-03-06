@@ -110,7 +110,9 @@ async fn run_socket_loop(
                     // Acknowledge the envelope immediately.
                     if let Some(envelope_id) = envelope["envelope_id"].as_str() {
                         let ack = serde_json::json!({ "envelope_id": envelope_id });
-                        write.send(Message::Text(ack.to_string())).await?;
+                        if let Err(e) = write.send(Message::Text(ack.to_string())).await {
+                            log::warn!("Slack ACK failed for envelope {envelope_id}: {e}");
+                        }
                     }
 
                     // Dispatch event — read rules/user_id/emoji_colors from state.
@@ -326,8 +328,6 @@ async fn trigger_animation(rule: &SlackRule, state: &AppState) {
         .duration_secs
         .unwrap_or_else(|| (rule.repeat as f64) * anim.period() / speed);
 
-    let prev_color = *state.inner.current_color.lock().await;
-
     // Cancel any in-progress event animation.
     if let Some(h) = state.inner.event_animation_handle.lock().await.take() {
         h.abort();
@@ -340,6 +340,9 @@ async fn trigger_animation(rule: &SlackRule, state: &AppState) {
 
     let state_clone = state.clone();
     let handle = tokio::spawn(async move {
+        // Capture the pre-animation color inside the task to minimize the race
+        // window between cancelling the previous animation and starting this one.
+        let pre_animation_color = *state_clone.inner.current_color.lock().await;
         let start = Instant::now();
         let mut last_frame = color;
         while start.elapsed().as_secs_f64() < duration {
@@ -356,7 +359,7 @@ async fn trigger_animation(rule: &SlackRule, state: &AppState) {
             .store(false, Ordering::SeqCst);
         let current = *state_clone.inner.current_color.lock().await;
         if current == Some(last_frame) {
-            if let Some(c) = prev_color {
+            if let Some(c) = pre_animation_color {
                 set_device_color(&state_clone, c).await;
             }
         }
