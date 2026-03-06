@@ -51,7 +51,13 @@ final class StatusLightCLI {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binaryPath)
 
-        var args = ["animate", animType]
+        // --brightness is a global flag (0-100) before the subcommand
+        var args: [String] = []
+        let brightnessPercent = Int((brightness * 100).rounded())
+        if brightnessPercent < 100 {
+            args += ["--brightness", "\(brightnessPercent)"]
+        }
+        args += ["animate", animType]
         if let c = color {
             args += ["--color", c]
         }
@@ -59,9 +65,6 @@ final class StatusLightCLI {
             args += ["--color2", c2]
         }
         args += ["--speed", String(format: "%.2f", speed)]
-        if brightness < 1.0 {
-            args += ["--brightness", String(format: "%.2f", brightness)]
-        }
 
         process.arguments = args
         process.standardOutput = FileHandle.nullDevice

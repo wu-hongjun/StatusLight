@@ -521,56 +521,66 @@ fn main() -> Result<()> {
             } else {
                 println!("Device:  connected ({} found)", devices.len());
 
+                // Helper: unscale a readback color by brightness, then match preset.
+                let identify_preset = |raw: Color| -> Option<&'static str> {
+                    // First try matching the raw color directly (works at 100%).
+                    if let Some(p) = statuslight_core::protocol::button_cycle_preset(raw) {
+                        return Some(p);
+                    }
+                    // Unscale by brightness to recover the original color.
+                    if brightness_factor > 0.0 && brightness_factor < 1.0 {
+                        let unscaled = Color::new(
+                            (raw.r as f64 / brightness_factor).round().min(255.0) as u8,
+                            (raw.g as f64 / brightness_factor).round().min(255.0) as u8,
+                            (raw.b as f64 / brightness_factor).round().min(255.0) as u8,
+                        );
+                        return statuslight_core::protocol::button_cycle_preset(unscaled);
+                    }
+                    None
+                };
+
                 // Try to read color from the device.
                 if daemon_client::DeviceProxy::daemon_running() {
-                    // Via daemon.
                     let proxy = DeviceProxy::open(false, None)?;
                     match proxy.get("/device-color") {
-                        Ok(body) => {
-                            match serde_json::from_str::<serde_json::Value>(&body) {
-                                Ok(parsed) => {
-                                    if parsed["supports_readback"].as_bool() == Some(true) {
-                                        match parsed
-                                            .get("device_color")
-                                            .and_then(|dc| dc.get("hex"))
-                                            .and_then(|h| h.as_str())
-                                        {
-                                            Some(hex) => {
-                                                println!("Color:   {hex} (from device)");
-                                                if let Ok(c) =
-                                                    statuslight_core::Color::from_hex(hex)
-                                                {
-                                                    if let Some(preset) = statuslight_core::protocol::button_cycle_preset(c) {
+                        Ok(body) => match serde_json::from_str::<serde_json::Value>(&body) {
+                            Ok(parsed) => {
+                                if parsed["supports_readback"].as_bool() == Some(true) {
+                                    match parsed
+                                        .get("device_color")
+                                        .and_then(|dc| dc.get("hex"))
+                                        .and_then(|h| h.as_str())
+                                    {
+                                        Some(hex) => {
+                                            println!("Color:   {hex} (from device)");
+                                            if let Ok(c) = statuslight_core::Color::from_hex(hex) {
+                                                if let Some(preset) = identify_preset(c) {
                                                     println!("Status:  {preset}");
                                                 }
-                                                }
                                             }
-                                            None => println!("Color:   unavailable"),
                                         }
-                                    } else {
-                                        println!("Color:   readback not supported");
+                                        None => println!("Color:   unavailable"),
                                     }
-                                }
-                                Err(e) => {
-                                    log::debug!("Failed to parse device-color response: {e}");
-                                    println!("Color:   unavailable");
+                                } else {
+                                    println!("Color:   readback not supported");
                                 }
                             }
-                        }
+                            Err(e) => {
+                                log::debug!("Failed to parse device-color response: {e}");
+                                println!("Color:   unavailable");
+                            }
+                        },
                         Err(e) => {
                             log::debug!("Failed to read device color: {e}");
                             println!("Color:   unavailable");
                         }
                     }
                 } else {
-                    // Direct HID mode.
                     match registry.open_any() {
                         Ok(dev) => match dev.get_color() {
                             Some(Ok(color)) => {
                                 println!("Color:   {} (from device)", color.to_hex());
-                                if let Some(preset) =
-                                    statuslight_core::protocol::button_cycle_preset(color)
-                                {
+                                if let Some(preset) = identify_preset(color) {
                                     println!("Status:  {preset}");
                                 }
                             }

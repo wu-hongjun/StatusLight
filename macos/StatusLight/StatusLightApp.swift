@@ -229,17 +229,21 @@ final class ViewModel: ObservableObject {
     ]
 
     /// Match a hex color against known presets, accounting for intensity scaling.
+    ///
+    /// Compares by unscaling the readback color (dividing by intensity) and
+    /// checking against full-brightness preset values. This is more robust
+    /// across the full intensity range than scaling presets down.
     private func matchPreset(hex: String) -> String? {
-        guard hex.count == 7, hex.hasPrefix("#") else { return nil }
-        let r = Double(Int(hex.dropFirst(1).prefix(2), radix: 16) ?? 0)
-        let g = Double(Int(hex.dropFirst(3).prefix(2), radix: 16) ?? 0)
-        let b = Double(Int(hex.dropFirst(5).prefix(2), radix: 16) ?? 0)
+        guard hex.count == 7, hex.hasPrefix("#"), intensity > 0 else { return nil }
+        let r = Double(Int(hex.dropFirst(1).prefix(2), radix: 16) ?? 0) / intensity
+        let g = Double(Int(hex.dropFirst(3).prefix(2), radix: 16) ?? 0) / intensity
+        let b = Double(Int(hex.dropFirst(5).prefix(2), radix: 16) ?? 0) / intensity
 
-        let tolerance = 25.0
+        let tolerance = 30.0
         for preset in Self.knownPresets {
-            let pr = preset.r * 255.0 * intensity
-            let pg = preset.g * 255.0 * intensity
-            let pb = preset.b * 255.0 * intensity
+            let pr = preset.r * 255.0
+            let pg = preset.g * 255.0
+            let pb = preset.b * 255.0
             if abs(r - pr) <= tolerance && abs(g - pg) <= tolerance && abs(b - pb) <= tolerance {
                 return preset.name
             }
@@ -257,9 +261,16 @@ final class ViewModel: ObservableObject {
         } else if let preset = status.presetName ?? matchPreset(hex: hex) {
             self.currentPreset = preset
             self.isCustomColorActive = false
+            // Set pickerColor to the full-brightness preset color
+            self.pickerColor = colorForPreset(preset)
+            self.animationColor = self.pickerColor
         } else {
             self.currentPreset = nil
             self.isCustomColorActive = true
+            // Reverse the intensity scaling to recover the original color
+            let unscaled = unscaleHex(hex, intensity: intensity)
+            self.pickerColor = colorFromHex(unscaled)
+            self.animationColor = self.pickerColor
         }
 
         // If preset changed (e.g. physical button press), sync to Slack.
@@ -268,6 +279,18 @@ final class ViewModel: ObservableObject {
                 Task { await self.syncSlackStatus(for: preset) }
             }
         }
+    }
+
+    /// Reverse intensity scaling on a hex color to recover the original color.
+    private func unscaleHex(_ hex: String, intensity: Double) -> String {
+        guard hex.count == 7, hex.hasPrefix("#"), intensity > 0 else { return hex }
+        let r = Double(Int(hex.dropFirst(1).prefix(2), radix: 16) ?? 0)
+        let g = Double(Int(hex.dropFirst(3).prefix(2), radix: 16) ?? 0)
+        let b = Double(Int(hex.dropFirst(5).prefix(2), radix: 16) ?? 0)
+        let ur = Int(min(255, round(r / intensity)))
+        let ug = Int(min(255, round(g / intensity)))
+        let ub = Int(min(255, round(b / intensity)))
+        return String(format: "#%02X%02X%02X", ur, ug, ub)
     }
 
     // MARK: - Device Targeting
@@ -297,7 +320,7 @@ final class ViewModel: ObservableObject {
     // MARK: - Light Control
 
     func setPreset(_ name: String) {
-        stopAnimation()
+        stopAnimation(restore: false)
         currentPreset = name
         isCustomColorActive = false
         // Sync picker color to match the selected preset
@@ -308,6 +331,7 @@ final class ViewModel: ObservableObject {
             presetColor = colorForPreset(name)
         }
         pickerColor = presetColor
+        animationColor = presetColor
         Task {
             var anyOk = false
             for target in enabledTargets {
@@ -343,7 +367,7 @@ final class ViewModel: ObservableObject {
             savedState = .customColor(pickerColor)
         }
 
-        stopAnimation()
+        stopAnimation(restore: false)
         currentPreset = nil
         isCustomColorActive = false
         Task {
@@ -374,9 +398,10 @@ final class ViewModel: ObservableObject {
     }
 
     func setPickerColor() {
-        stopAnimation()
+        stopAnimation(restore: false)
         currentPreset = nil
         isCustomColorActive = true
+        animationColor = pickerColor
         let hex = pickerColor.scaledHex(intensity: intensity)
         Task {
             for target in enabledTargets {
@@ -387,17 +412,43 @@ final class ViewModel: ObservableObject {
 
     // MARK: - Animation
 
-    func startAnimation(type animType: String, color: String = "white", color2: String? = nil, speed: Double = 1.0) {
-        stopAnimation()
+    /// State before animation started, so we can restore it on stop.
+    private var preAnimationState: SavedLightState?
+
+    func startAnimation(type animType: String, color: String? = nil, color2: String? = nil, speed: Double = 1.0) {
+        // Save current state before starting animation
+        if !isAnimating {
+            if let preset = currentPreset {
+                preAnimationState = .preset(preset)
+            } else if isCustomColorActive {
+                preAnimationState = .customColor(pickerColor)
+            }
+        }
+        stopAnimation(restore: false)
         isAnimating = true
         currentPreset = nil
         animationProcess = cli.animate(type: animType, color: color, color2: color2, speed: speed, brightness: intensity)
     }
 
-    func stopAnimation() {
+    func stopAnimation(restore: Bool = true) {
         cli.stopAnimation(animationProcess)
         animationProcess = nil
+        let wasAnimating = isAnimating
         isAnimating = false
+
+        // Restore the light to its pre-animation state
+        if restore && wasAnimating, let state = preAnimationState {
+            preAnimationState = nil
+            switch state {
+            case .preset(let name):
+                setPreset(name)
+            case .customColor(let color):
+                pickerColor = color
+                setPickerColor()
+            case .animation:
+                break
+            }
+        }
     }
 
     // MARK: - Custom Presets
@@ -545,7 +596,7 @@ final class ViewModel: ObservableObject {
 
     func uninstall() {
         // Stop the animation subprocess tracked by this app
-        stopAnimation()
+        stopAnimation(restore: false)
         currentPreset = nil
 
         // Run the rest on a background thread to avoid blocking the main thread
@@ -711,6 +762,8 @@ struct MenuBarView: View {
                         .foregroundColor(.secondary)
                         .frame(width: 30, alignment: .trailing)
                 }
+                Divider()
+                MenuBarAnimationRow()
             }
             Divider()
             MenuBarFooterRow()
@@ -760,6 +813,47 @@ struct MenuBarFooterRow: View {
             }
             .buttonStyle(.borderless)
             .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - Menu Bar Animation Row
+
+struct MenuBarAnimationRow: View {
+    @EnvironmentObject var vm: ViewModel
+
+    private let animations: [(type: String, label: String, icon: String)] = [
+        ("breathing", "Breath", "wind"),
+        ("flash", "Flash", "bolt.fill"),
+        ("pulse", "Pulse", "waveform.path"),
+        ("rainbow", "Rainbow", "rainbow"),
+    ]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(animations, id: \.type) { anim in
+                Button(action: {
+                    if vm.isAnimating && vm.selectedAnimationType == anim.type {
+                        vm.stopAnimation()
+                    } else {
+                        vm.selectedAnimationType = anim.type
+                        // Breath, Flash, Pulse use current color; Rainbow has no color
+                        let color: String? = anim.type == "rainbow" ? nil : vm.pickerColor.toHex()
+                        vm.startAnimation(type: anim.type, color: color, speed: vm.animationSpeed)
+                    }
+                }) {
+                    VStack(spacing: 2) {
+                        Image(systemName: anim.icon)
+                            .font(.system(size: 11))
+                        Text(anim.label)
+                            .font(.system(size: 8))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.bordered)
+                .tint(vm.isAnimating && vm.selectedAnimationType == anim.type ? .accentColor : nil)
+            }
         }
     }
 }
@@ -1134,6 +1228,29 @@ struct AnimationSection: View {
 
     private let animationTypes = ["breathing", "flash", "sos", "pulse", "rainbow", "transition"]
 
+    private func animationLabel(_ type: String) -> String {
+        type == "breathing" ? "Breath" : type.capitalized
+    }
+
+    /// Whether the selected animation type uses a color picker.
+    private var showColorPicker: Bool {
+        // Breathing uses the current device color; rainbow cycles the spectrum.
+        !["breathing", "rainbow"].contains(vm.selectedAnimationType)
+    }
+
+    /// Resolve the color to pass to the CLI for the current animation type.
+    private var resolvedColor: String? {
+        switch vm.selectedAnimationType {
+        case "breathing":
+            // Use the current device color (from preset or custom picker)
+            return vm.pickerColor.toHex()
+        case "rainbow":
+            return nil  // rainbow ignores color
+        default:
+            return vm.animationColor.toHex()
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("ANIMATION")
@@ -1143,7 +1260,7 @@ struct AnimationSection: View {
             HStack(spacing: 8) {
                 Picker("Type", selection: $vm.selectedAnimationType) {
                     ForEach(animationTypes, id: \.self) { type in
-                        Text(type.capitalized).tag(type)
+                        Text(animationLabel(type)).tag(type)
                     }
                 }
                 .labelsHidden()
@@ -1165,7 +1282,7 @@ struct AnimationSection: View {
                     Button(action: {
                         vm.startAnimation(
                             type: vm.selectedAnimationType,
-                            color: vm.animationColor.toHex(),
+                            color: resolvedColor,
                             color2: vm.selectedAnimationType == "transition" ? vm.animationColor2.toHex() : nil,
                             speed: vm.animationSpeed
                         )
@@ -1180,16 +1297,17 @@ struct AnimationSection: View {
                 }
             }
 
-            // Color pickers inline
-            HStack(spacing: 12) {
-                ColorPicker("Color", selection: $vm.animationColor, supportsOpacity: false)
-                    .font(.caption)
-                    .frame(maxWidth: 140)
-
-                if vm.selectedAnimationType == "transition" {
-                    ColorPicker("Color 2", selection: $vm.animationColor2, supportsOpacity: false)
+            if showColorPicker {
+                HStack(spacing: 12) {
+                    ColorPicker("Color", selection: $vm.animationColor, supportsOpacity: false)
                         .font(.caption)
                         .frame(maxWidth: 140)
+
+                    if vm.selectedAnimationType == "transition" {
+                        ColorPicker("Color 2", selection: $vm.animationColor2, supportsOpacity: false)
+                            .font(.caption)
+                            .frame(maxWidth: 140)
+                    }
                 }
             }
 
