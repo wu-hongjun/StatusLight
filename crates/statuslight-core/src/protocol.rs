@@ -53,6 +53,38 @@ const RESP_COLOR_BLUE: usize = 5;
 const RESP_COLOR_GREEN: usize = 6;
 const RESP_COLOR_RED: usize = 7;
 
+/// Known colors from the Slicky button cycle, in cycle order.
+/// These are the exact values returned by CMD 0x0B after each button press.
+pub const BUTTON_CYCLE_COLORS: &[(Color, &str)] = &[
+    (
+        Color {
+            r: 255,
+            g: 255,
+            b: 255,
+        },
+        "in-meeting",
+    ),
+    (Color { r: 255, g: 0, b: 0 }, "busy"),
+    (
+        Color {
+            r: 255,
+            g: 255,
+            b: 0,
+        },
+        "away",
+    ),
+    (Color { r: 0, g: 255, b: 0 }, "available"),
+    (Color { r: 0, g: 0, b: 0 }, "off"),
+];
+
+/// Look up the preset name for a button-cycle color, if it matches exactly.
+pub fn button_cycle_preset(color: Color) -> Option<&'static str> {
+    BUTTON_CYCLE_COLORS
+        .iter()
+        .find(|(c, _)| *c == color)
+        .map(|(_, name)| *name)
+}
+
 /// Build the 65-byte HID output report for setting a color.
 ///
 /// The returned buffer includes the report ID at index 0, the set-color
@@ -225,5 +257,28 @@ mod tests {
         assert_eq!(req[0], 0x00, "report ID");
         assert_eq!(req[1], 0x01, "command byte should be 0x01");
         assert_eq!(req.len(), BUFFER_SIZE);
+    }
+
+    #[test]
+    fn button_cycle_preset_white_is_in_meeting() {
+        assert_eq!(
+            button_cycle_preset(Color::new(255, 255, 255)),
+            Some("in-meeting")
+        );
+    }
+
+    #[test]
+    fn button_cycle_preset_red_is_busy() {
+        assert_eq!(button_cycle_preset(Color::new(255, 0, 0)), Some("busy"));
+    }
+
+    #[test]
+    fn button_cycle_preset_unknown_color() {
+        assert_eq!(button_cycle_preset(Color::new(128, 64, 32)), None);
+    }
+
+    #[test]
+    fn button_cycle_preset_off() {
+        assert_eq!(button_cycle_preset(Color::new(0, 0, 0)), Some("off"));
     }
 }

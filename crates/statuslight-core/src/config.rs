@@ -30,6 +30,9 @@ pub struct Config {
     /// Daemon-specific settings.
     #[serde(default)]
     pub daemon: DaemonConfig,
+    /// Button integration settings.
+    #[serde(default)]
+    pub button: ButtonConfig,
 }
 
 fn default_brightness() -> u8 {
@@ -60,6 +63,7 @@ impl Default for Config {
             custom_presets: Vec::new(),
             brightness: default_brightness(),
             daemon: DaemonConfig::default(),
+            button: ButtonConfig::default(),
         }
     }
 }
@@ -69,6 +73,38 @@ impl Default for DaemonConfig {
         Self {
             tcp_port: None,
             tcp_bind: default_tcp_bind(),
+        }
+    }
+}
+
+/// Button integration settings.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ButtonConfig {
+    /// Enable the daemon button-polling loop.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Polling interval in seconds.
+    #[serde(default = "default_button_poll_interval", rename = "poll_interval")]
+    pub poll_interval_secs: u64,
+    /// Sync button-press status changes to Slack (requires Slack tokens).
+    #[serde(default)]
+    pub slack_sync: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_button_poll_interval() -> u64 {
+    2
+}
+
+impl Default for ButtonConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            poll_interval_secs: 2,
+            slack_sync: false,
         }
     }
 }
