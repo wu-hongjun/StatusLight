@@ -568,6 +568,47 @@ fn main() -> Result<()> {
                 println!("Device:  not connected");
             } else {
                 println!("Device:  connected ({} found)", devices.len());
+
+                // Try to read color from the device.
+                if daemon_client::DeviceProxy::daemon_running() {
+                    // Via daemon.
+                    let proxy = DeviceProxy::open(false, None)?;
+                    match proxy.get("/device-color") {
+                        Ok(body) => {
+                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) {
+                                if parsed["supports_readback"].as_bool() == Some(true) {
+                                    if let Some(dc) = parsed.get("device_color") {
+                                        let hex = dc["hex"].as_str().unwrap_or("unknown");
+                                        println!("Color:   {hex} (from device)");
+                                    }
+                                } else {
+                                    println!("Color:   readback not supported");
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            log::debug!("Failed to read device color: {e}");
+                        }
+                    }
+                } else {
+                    // Direct HID mode.
+                    match registry.open_any() {
+                        Ok(dev) => match dev.get_color() {
+                            Some(Ok(color)) => {
+                                println!("Color:   {} (from device)", color.to_hex());
+                            }
+                            Some(Err(e)) => {
+                                log::debug!("Failed to read color: {e}");
+                            }
+                            None => {
+                                println!("Color:   readback not supported");
+                            }
+                        },
+                        Err(e) => {
+                            log::debug!("Failed to open device for readback: {e}");
+                        }
+                    }
+                }
             }
 
             let config = Config::load()?;

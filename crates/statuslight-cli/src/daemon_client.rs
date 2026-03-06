@@ -148,6 +148,21 @@ impl DeviceProxy {
         }
     }
 
+    /// Send a GET request to the daemon (only works in Daemon mode).
+    /// Returns the response body on success.
+    pub fn get(&self, path: &str) -> Result<String> {
+        match self {
+            Self::Daemon { .. } => {
+                let resp = http_get(DAEMON_SOCKET, path)?;
+                if !resp.status_ok {
+                    bail!("daemon error: {}", resp.body);
+                }
+                Ok(resp.body)
+            }
+            Self::Direct(_) | Self::DirectMulti(_) => bail!("daemon not running"),
+        }
+    }
+
     /// Returns true if the daemon socket exists (daemon likely running).
     pub fn daemon_running() -> bool {
         Path::new(DAEMON_SOCKET).exists()
@@ -175,6 +190,32 @@ fn http_post(socket_path: &str, path: &str, body: &str) -> Result<HttpResponse> 
          \r\n\
          {body}",
         body.len()
+    );
+
+    stream
+        .write_all(request.as_bytes())
+        .context("failed to write request to daemon")?;
+
+    let mut raw = String::new();
+    stream
+        .take(MAX_RESPONSE_SIZE)
+        .read_to_string(&mut raw)
+        .context("failed to read response from daemon")?;
+
+    parse_http_response(&raw)
+}
+
+/// Send a minimal HTTP/1.1 GET over a Unix socket and parse the response.
+fn http_get(socket_path: &str, path: &str) -> Result<HttpResponse> {
+    let mut stream = UnixStream::connect(socket_path).context("failed to connect to daemon")?;
+    stream.set_read_timeout(Some(SOCKET_TIMEOUT))?;
+    stream.set_write_timeout(Some(SOCKET_TIMEOUT))?;
+
+    let request = format!(
+        "GET {path} HTTP/1.1\r\n\
+         Host: localhost\r\n\
+         Connection: close\r\n\
+         \r\n"
     );
 
     stream

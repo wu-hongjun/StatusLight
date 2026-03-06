@@ -160,3 +160,34 @@ pub extern "C" fn statuslight_device_count() -> i32 {
     })
     .unwrap_or(-3)
 }
+
+/// Read the current color from the device.
+///
+/// Returns 0 on success, -9 if readback is not supported, other negative codes on error.
+///
+/// # Safety
+///
+/// `r`, `g`, `b` must be valid, non-null pointers to writable `u8` memory.
+#[no_mangle]
+pub unsafe extern "C" fn statuslight_get_color(r: *mut u8, g: *mut u8, b: *mut u8) -> i32 {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if r.is_null() || g.is_null() || b.is_null() {
+            return -5;
+        }
+        match DeviceRegistry::with_builtins().open_any() {
+            Ok(dev) => match dev.get_color() {
+                None => -9, // readback not supported
+                Some(Ok(color)) => {
+                    // SAFETY: caller guarantees pointers are valid and writable.
+                    *r = color.r;
+                    *g = color.g;
+                    *b = color.b;
+                    0
+                }
+                Some(Err(e)) => error_code(&e),
+            },
+            Err(e) => error_code(&e),
+        }
+    }))
+    .unwrap_or(-3)
+}

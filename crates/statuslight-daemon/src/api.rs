@@ -23,6 +23,7 @@ pub fn router(state: AppState) -> Router {
         .route("/brightness", post(post_brightness))
         .route("/presets", get(get_presets))
         .route("/devices", get(get_devices))
+        .route("/device-color", get(get_device_color))
         .route("/slack/status", get(get_slack_status))
         .route("/slack/configure", post(post_slack_configure))
         .route("/slack/enable", post(post_slack_enable))
@@ -107,6 +108,12 @@ struct DeviceEntry {
     vid: String,
     pid: String,
     driver: String,
+}
+
+#[derive(Serialize)]
+struct DeviceColorResponse {
+    device_color: Option<ColorResponse>,
+    supports_readback: bool,
 }
 
 #[derive(Serialize)]
@@ -362,6 +369,35 @@ async fn get_devices() -> Result<Json<Vec<DeviceEntry>>, (StatusCode, Json<Error
         })
         .collect();
     Ok(Json(entries))
+}
+
+async fn get_device_color(
+    Query(query): Query<DeviceQuery>,
+) -> Result<Json<DeviceColorResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let registry = DeviceRegistry::with_builtins();
+    let dev = if let Some(ref serial) = query.device {
+        // Find which driver owns this serial.
+        let all = registry.enumerate_all();
+        let (driver_id, _) = all
+            .iter()
+            .find(|(_, info)| info.serial.as_deref() == Some(serial.as_str()))
+            .ok_or_else(|| map_error(StatusLightError::DeviceNotFound))?;
+        registry.open(driver_id, Some(serial)).map_err(map_error)?
+    } else {
+        registry.open_any().map_err(map_error)?
+    };
+
+    match dev.get_color() {
+        None => Ok(Json(DeviceColorResponse {
+            device_color: None,
+            supports_readback: false,
+        })),
+        Some(Ok(color)) => Ok(Json(DeviceColorResponse {
+            device_color: Some(color.into()),
+            supports_readback: true,
+        })),
+        Some(Err(e)) => Err(map_error(e)),
+    }
 }
 
 async fn get_slack_status(State(state): State<AppState>) -> impl IntoResponse {
