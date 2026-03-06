@@ -80,14 +80,26 @@ final class StatusLightCLI {
 
     // MARK: - Devices
 
-    /// Check if any StatusLight device is connected.
-    func isDeviceConnected() async -> Bool {
+    /// Query connected devices. Returns an array of device description strings.
+    func getDevices() async -> [String] {
         let (output, ok) = await run(["devices"])
-        guard ok else { return false }
-        // The `devices` command lists connected devices; if there's meaningful
-        // output beyond headers, a device is connected.
-        let lines = output.split(separator: "\n").filter { !$0.isEmpty }
-        return lines.count > 1
+        guard ok else { return [] }
+        // Parse "Device N:" blocks — extract Product or Driver name from each.
+        var devices: [String] = []
+        var currentName: String?
+        for line in output.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("Device ") {
+                if let name = currentName { devices.append(name) }
+                currentName = nil
+            } else if trimmed.hasPrefix("Product:") {
+                currentName = String(trimmed.dropFirst("Product:".count)).trimmingCharacters(in: .whitespaces)
+            } else if trimmed.hasPrefix("Driver:") && currentName == nil {
+                currentName = String(trimmed.dropFirst("Driver:".count)).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        if let name = currentName { devices.append(name) }
+        return devices
     }
 
     // MARK: - Slack

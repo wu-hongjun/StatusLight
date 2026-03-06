@@ -98,6 +98,7 @@ final class ViewModel: ObservableObject {
     }
 
     @Published var deviceConnected = false
+    @Published var deviceNames: [String] = []
     @Published var slackConnected = false
     @Published var currentPreset: String? = nil
     @Published var isInstalled = false
@@ -183,13 +184,14 @@ final class ViewModel: ObservableObject {
         guard !isRefreshing else { return }
         isRefreshing = true
         refreshTask = Task { @MainActor in
-            let dev = await cli.isDeviceConnected()
+            let devices = await cli.getDevices()
             let slack = await cli.isSlackConnected()
             guard !Task.isCancelled else {
                 self.isRefreshing = false
                 return
             }
-            self.deviceConnected = dev
+            self.deviceNames = devices
+            self.deviceConnected = !devices.isEmpty
             self.slackConnected = slack
             self.isRefreshing = false
         }
@@ -682,7 +684,7 @@ struct StatusSection: View {
             Circle()
                 .fill(vm.deviceConnected ? Color.green : Color.red)
                 .frame(width: 8, height: 8)
-            Text(vm.deviceConnected ? "Device connected" : "No device")
+            Text(vm.deviceConnected ? vm.deviceNames.joined(separator: ", ") : "No device")
                 .font(.caption)
                 .foregroundColor(vm.deviceConnected ? .primary : .secondary)
 
