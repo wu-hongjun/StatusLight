@@ -38,6 +38,14 @@ pub enum StatusLightError {
     /// The specified driver was not found in the registry.
     #[error("unknown driver: {0}")]
     UnknownDriver(String),
+
+    /// A device read operation timed out.
+    #[error("device read timed out")]
+    ReadTimeout,
+
+    /// The device returned an unexpected or unparseable response.
+    #[error("unexpected device response")]
+    UnexpectedResponse,
 }
 
 /// A type alias for `Result<T, StatusLightError>`.

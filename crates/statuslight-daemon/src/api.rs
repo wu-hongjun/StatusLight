@@ -155,9 +155,10 @@ fn map_error(e: StatusLightError) -> (StatusCode, Json<ErrorResponse>) {
         | StatusLightError::UnknownPreset(_)
         | StatusLightError::DuplicatePreset(_)
         | StatusLightError::PresetNotFound(_) => StatusCode::BAD_REQUEST,
-        StatusLightError::Hid(_) | StatusLightError::WriteMismatch { .. } => {
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
+        StatusLightError::Hid(_)
+        | StatusLightError::WriteMismatch { .. }
+        | StatusLightError::ReadTimeout
+        | StatusLightError::UnexpectedResponse => StatusCode::INTERNAL_SERVER_ERROR,
     };
     (
         status,

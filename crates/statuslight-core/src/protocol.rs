@@ -40,6 +40,18 @@ const IDX_RED: usize = 8;
 const CMD_SET_COLOR: u8 = 0x0A;
 const SUBCMD_SET_COLOR: u8 = 0x04;
 
+const CMD_DEVICE_INFO: u8 = 0x00;
+const CMD_SERIAL: u8 = 0x01;
+const CMD_GET_COLOR: u8 = 0x0B;
+
+/// Timeout in milliseconds for reading HID input reports.
+pub const READ_TIMEOUT_MS: i32 = 200;
+
+// Response byte offsets for CMD 0x0B get color.
+const RESP_COLOR_BLUE: usize = 5;
+const RESP_COLOR_GREEN: usize = 6;
+const RESP_COLOR_RED: usize = 7;
+
 /// Build the 65-byte HID output report for setting a color.
 ///
 /// The returned buffer includes the report ID at index 0, the set-color
@@ -58,6 +70,45 @@ pub fn build_set_color_report(color: Color) -> [u8; BUFFER_SIZE] {
 /// Build the off report (all color bytes zero).
 pub fn build_off_report() -> [u8; BUFFER_SIZE] {
     build_set_color_report(Color::off())
+}
+
+/// Build the 65-byte HID output report to request the current color (CMD 0x0B).
+pub fn build_get_color_request() -> [u8; BUFFER_SIZE] {
+    let mut buf = [0u8; BUFFER_SIZE];
+    buf[IDX_REPORT_ID] = 0x00;
+    buf[IDX_COMMAND] = CMD_GET_COLOR;
+    buf
+}
+
+/// Parse the device response from a CMD 0x0B get-color request.
+///
+/// Returns `Some(Color)` if the response is valid (starts with `0x0B`
+/// and has at least 8 bytes), or `None` otherwise.
+pub fn parse_get_color_response(resp: &[u8]) -> Option<Color> {
+    if resp.len() < 8 || resp[0] != CMD_GET_COLOR {
+        return None;
+    }
+    Some(Color::new(
+        resp[RESP_COLOR_RED],
+        resp[RESP_COLOR_GREEN],
+        resp[RESP_COLOR_BLUE],
+    ))
+}
+
+/// Build the 65-byte HID output report for a device info query (CMD 0x00).
+pub fn build_device_info_request() -> [u8; BUFFER_SIZE] {
+    let mut buf = [0u8; BUFFER_SIZE];
+    buf[IDX_REPORT_ID] = 0x00;
+    buf[IDX_COMMAND] = CMD_DEVICE_INFO;
+    buf
+}
+
+/// Build the 65-byte HID output report for a serial number query (CMD 0x01).
+pub fn build_serial_request() -> [u8; BUFFER_SIZE] {
+    let mut buf = [0u8; BUFFER_SIZE];
+    buf[IDX_REPORT_ID] = 0x00;
+    buf[IDX_COMMAND] = CMD_SERIAL;
+    buf
 }
 
 #[cfg(test)]
@@ -113,5 +164,55 @@ mod tests {
             report[2], 0x04,
             "off report should still have subcommand byte"
         );
+    }
+
+    #[test]
+    fn get_color_request_format() {
+        let req = build_get_color_request();
+        assert_eq!(req[0], 0x00, "report ID");
+        assert_eq!(req[1], 0x0B, "command byte should be 0x0B");
+        assert_eq!(req.len(), BUFFER_SIZE);
+    }
+
+    #[test]
+    fn parse_get_color_response_valid() {
+        let mut resp = [0u8; 64];
+        resp[0] = 0x0B;
+        resp[RESP_COLOR_BLUE] = 0x33;
+        resp[RESP_COLOR_GREEN] = 0x22;
+        resp[RESP_COLOR_RED] = 0x11;
+        let color = parse_get_color_response(&resp).unwrap();
+        assert_eq!(color.r, 0x11);
+        assert_eq!(color.g, 0x22);
+        assert_eq!(color.b, 0x33);
+    }
+
+    #[test]
+    fn parse_get_color_response_wrong_command() {
+        let mut resp = [0u8; 64];
+        resp[0] = 0x0A; // wrong command
+        assert!(parse_get_color_response(&resp).is_none());
+    }
+
+    #[test]
+    fn parse_get_color_response_too_short() {
+        let resp = [0x0B, 0x04, 0x00]; // only 3 bytes
+        assert!(parse_get_color_response(&resp).is_none());
+    }
+
+    #[test]
+    fn device_info_request_format() {
+        let req = build_device_info_request();
+        assert_eq!(req[0], 0x00, "report ID");
+        assert_eq!(req[1], 0x00, "command byte should be 0x00");
+        assert_eq!(req.len(), BUFFER_SIZE);
+    }
+
+    #[test]
+    fn serial_request_format() {
+        let req = build_serial_request();
+        assert_eq!(req[0], 0x00, "report ID");
+        assert_eq!(req[1], 0x01, "command byte should be 0x01");
+        assert_eq!(req.len(), BUFFER_SIZE);
     }
 }

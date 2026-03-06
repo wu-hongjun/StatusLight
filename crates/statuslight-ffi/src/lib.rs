@@ -31,6 +31,8 @@ fn error_code(e: &StatusLightError) -> i32 {
         StatusLightError::WriteMismatch { .. } => -6,
         StatusLightError::DuplicatePreset(_) | StatusLightError::PresetNotFound(_) => -7,
         StatusLightError::UnknownDriver(_) => -8,
+        StatusLightError::ReadTimeout => -9,
+        StatusLightError::UnexpectedResponse => -10,
     }
 }
 
