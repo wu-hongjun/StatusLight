@@ -8,6 +8,7 @@
 //! - `-4` — invalid color value
 //! - `-5` — invalid argument (null pointer, bad UTF-8)
 //! - `-6` — write failed
+//! - `-7` — unknown or invalid preset
 
 use std::ffi::CStr;
 use std::os::raw::c_char;
@@ -24,9 +25,9 @@ fn error_code(e: &StatusLightError) -> i32 {
         StatusLightError::MultipleDevices { .. } => -2,
         StatusLightError::Hid(_) => -3,
         StatusLightError::InvalidHexColor(_) => -4,
-        StatusLightError::UnknownPreset(_) => -4,
+        StatusLightError::UnknownPreset(_) => -7,
         StatusLightError::WriteMismatch { .. } => -6,
-        StatusLightError::DuplicatePreset(_) | StatusLightError::PresetNotFound(_) => -4,
+        StatusLightError::DuplicatePreset(_) | StatusLightError::PresetNotFound(_) => -7,
     }
 }
 
@@ -45,7 +46,7 @@ fn set_color_inner(color: Color) -> i32 {
 #[no_mangle]
 pub extern "C" fn statuslight_init() {
     INIT.call_once(|| {
-        env_logger::init();
+        let _ = env_logger::try_init();
     });
 }
 

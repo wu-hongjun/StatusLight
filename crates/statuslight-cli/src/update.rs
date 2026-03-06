@@ -1,6 +1,6 @@
 //! Blocking update-check for the CLI (uses `ureq`).
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use semver::Version;
 use serde::Serialize;
@@ -184,7 +184,16 @@ pub fn install() -> Result<()> {
     }
 
     // Copy new app from mounted volume using atomic swap with rollback.
-    let source_app = format!("{mount_point}/StatusLight.app");
+    // Canonicalize to resolve any `..` components that could escape /Volumes/.
+    let source_path = std::path::PathBuf::from(&mount_point).join("StatusLight.app");
+    let source_app = source_path
+        .canonicalize()
+        .context("failed to resolve source app path")?
+        .to_string_lossy()
+        .to_string();
+    if !source_app.starts_with("/Volumes/") {
+        bail!("source app path escapes /Volumes/: {source_app}");
+    }
     let dest_app = "/Applications/StatusLight.app";
     let backup_app = "/Applications/StatusLight.app.bak";
     let staging_app = "/Applications/StatusLight.app.new";

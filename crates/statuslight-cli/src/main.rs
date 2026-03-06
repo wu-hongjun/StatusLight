@@ -471,11 +471,10 @@ fn main() -> Result<()> {
                 if stdin {
                     slack::configure_from_stdin()?;
                 } else {
-                    // unwrap is safe: clap ensures these are present when --stdin is absent
                     slack::configure(
-                        &app_token.unwrap(),
-                        &bot_token.unwrap(),
-                        &user_token.unwrap(),
+                        app_token.as_deref().context("--app-token is required")?,
+                        bot_token.as_deref().context("--bot-token is required")?,
+                        user_token.as_deref().context("--user-token is required")?,
                     )?;
                 }
             }
@@ -530,13 +529,14 @@ fn main() -> Result<()> {
 
 /// Parse a list of color strings into a `Vec<Color>`.
 fn parse_colors(strings: &[String]) -> Result<Vec<Color>> {
-    strings.iter().map(|s| parse_color(s)).collect()
+    // Load config once for all color lookups (avoids N file reads).
+    let config = Config::load()?;
+    strings.iter().map(|s| parse_color(s, &config)).collect()
 }
 
 /// Parse a color string that can be either a preset name or a hex value.
-fn parse_color(s: &str) -> Result<Color> {
+fn parse_color(s: &str, config: &Config) -> Result<Color> {
     if let Ok(preset) = Preset::from_name(s) {
-        let config = Config::load()?;
         Ok(preset.color_with_overrides(&config.colors))
     } else {
         Color::from_hex(s).context("invalid color (not a preset name or hex value)")

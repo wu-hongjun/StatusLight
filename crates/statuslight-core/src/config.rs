@@ -188,13 +188,26 @@ impl Config {
                 if old_dir.exists() && !new_dir.exists() {
                     if fs::rename(&old_dir, new_dir).is_err() {
                         // Cross-device fallback: copy recursively.
-                        let _ = copy_dir_recursive(&old_dir, &new_dir.to_path_buf());
+                        if let Err(e) = copy_dir_recursive(&old_dir, &new_dir.to_path_buf()) {
+                            log::warn!(
+                                "Config migration failed: {e} (from {} to {})",
+                                old_dir.display(),
+                                new_dir.display()
+                            );
+                        } else {
+                            log::info!(
+                                "Migrated config from {} to {}",
+                                old_dir.display(),
+                                new_dir.display()
+                            );
+                        }
+                    } else {
+                        log::info!(
+                            "Migrated config from {} to {}",
+                            old_dir.display(),
+                            new_dir.display()
+                        );
                     }
-                    eprintln!(
-                        "Migrated config from {} to {}",
-                        old_dir.display(),
-                        new_dir.display()
-                    );
                 }
             }
         }
@@ -216,7 +229,9 @@ impl Config {
         // Migrate legacy single token → user_token.
         if config.slack.token.is_some() && config.slack.user_token.is_none() {
             config.slack.user_token = config.slack.token.take();
-            let _ = config.save_to(path);
+            if let Err(e) = config.save_to(path) {
+                log::warn!("Could not persist legacy token migration: {e}");
+            }
         }
 
         Ok(config)
