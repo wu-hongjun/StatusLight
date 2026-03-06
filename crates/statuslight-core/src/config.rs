@@ -204,14 +204,17 @@ impl Default for SlackConfig {
 
 fn default_emoji_colors() -> HashMap<String, String> {
     [
-        (":spiral_calendar_pad:", "#FFFFFF"), // In a meeting → white
-        (":calendar:", "#FFFFFF"),            // Calendar → white
-        (":no_entry:", "#FF0000"),            // Busy → red
-        (":no_entry_sign:", "#FF0000"),       // No entry sign → red
-        (":away:", "#FFFF00"),                // Away → yellow
-        (":palm_tree:", "#FFFF00"),           // Vacationing → yellow
-        (":house_with_garden:", "#00FF00"),   // Working remotely → green
-        (":large_green_circle:", "#00FF00"),  // Available → green
+        // Available → green
+        (":large_green_circle:", "#00FF00"),
+        (":house_with_garden:", "#00FF00"),
+        // Focusing / Do Not Disturb → red
+        (":no_entry:", "#FF0000"),
+        (":no_entry_sign:", "#FF0000"),
+        (":no_bell:", "#FF0000"),
+        // In a meeting / In a huddle → white
+        (":spiral_calendar_pad:", "#FFFFFF"),
+        (":calendar:", "#FFFFFF"),
+        (":headphones:", "#FFFFFF"),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v.to_string()))

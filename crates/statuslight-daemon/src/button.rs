@@ -120,9 +120,9 @@ async fn sync_slack_status(state: &AppState, preset_name: &str) {
 
     let (emoji, text) = match preset_name {
         "in-meeting" => (":spiral_calendar_pad:", "In a meeting"),
-        "busy" => (":no_entry:", "Busy"),
-        "away" => (":away:", "Away"),
-        "available" | "off" => ("", ""),
+        "busy" => (":no_entry:", "Focusing"),
+        "available" => (":large_green_circle:", "Available"),
+        "away" | "off" => ("", ""),
         _ => return,
     };
 

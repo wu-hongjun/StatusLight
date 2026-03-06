@@ -359,13 +359,13 @@ final class ViewModel: ObservableObject {
     private func syncSlackStatus(for preset: String) async {
         switch preset.lowercased() {
         case "available":
-            let _ = await cli.slackSetStatus(text: "", emoji: "")
+            let _ = await cli.slackSetStatus(text: "Available", emoji: ":large_green_circle:")
         case "busy":
-            let _ = await cli.slackSetStatus(text: "Busy", emoji: ":no_entry:")
+            let _ = await cli.slackSetStatus(text: "Focusing", emoji: ":no_entry:")
         case "away":
-            let _ = await cli.slackSetStatus(text: "Away", emoji: ":away:")
+            let _ = await cli.slackSetStatus(text: "", emoji: "")
         case "in-meeting":
-            let _ = await cli.slackSetStatus(text: "In a meeting", emoji: ":calendar:")
+            let _ = await cli.slackSetStatus(text: "In a meeting", emoji: ":spiral_calendar_pad:")
         default:
             break
         }
