@@ -264,29 +264,37 @@ async fn post_color(
     Json(req): Json<ColorRequest>,
 ) -> Result<Json<SetColorResponse>, (StatusCode, Json<ErrorResponse>)> {
     // Try as hex first, then as preset name (with config overrides), then custom presets.
-    let color_name = req.color.clone();
-    let color = Color::from_hex(&req.color)
-        .or_else(|_| {
-            // Config::load() does synchronous file I/O; resolve synchronously here
-            // since we're already in a closure. The outer handler is async.
-            let config = tokio::task::block_in_place(|| {
-                statuslight_core::Config::load().unwrap_or_default()
+    let color = if let Ok(c) = Color::from_hex(&req.color) {
+        c
+    } else {
+        // Config::load() does synchronous file I/O; use spawn_blocking to avoid
+        // blocking the async runtime (safe on any runtime flavor).
+        let color_name = req.color.clone();
+        let config = tokio::task::spawn_blocking(statuslight_core::Config::load)
+            .await
+            .unwrap_or_else(|e| {
+                log::warn!("spawn_blocking panicked in post_color: {e}");
+                Ok(statuslight_core::Config::default())
+            })
+            .unwrap_or_else(|e| {
+                log::warn!("Config::load failed in post_color: {e}");
+                statuslight_core::Config::default()
             });
-            // Check built-in presets with color overrides.
-            Preset::from_name(&color_name)
-                .map(|p| p.color_with_overrides(&config.colors))
-                .or_else(|_| {
-                    // Check custom presets.
-                    config
-                        .custom_presets
-                        .iter()
-                        .find(|cp| cp.name == color_name)
-                        .map(|cp| Color::from_hex(&cp.color))
-                        .transpose()?
-                        .ok_or_else(|| StatusLightError::UnknownPreset(color_name.clone()))
-                })
-        })
-        .map_err(map_error)?;
+        // Check built-in presets with color overrides.
+        Preset::from_name(&color_name)
+            .map(|p| p.color_with_overrides(&config.colors))
+            .or_else(|_| {
+                // Check custom presets.
+                config
+                    .custom_presets
+                    .iter()
+                    .find(|cp| cp.name == color_name)
+                    .map(|cp| Color::from_hex(&cp.color))
+                    .transpose()?
+                    .ok_or_else(|| StatusLightError::UnknownPreset(color_name.clone()))
+            })
+            .map_err(map_error)?
+    };
 
     try_set_color(&state, color, query.device.as_deref()).await?;
     Ok(Json(SetColorResponse {
@@ -516,8 +524,9 @@ async fn post_slack_configure(
         slack_state.emoji_colors = emoji_colors;
     }
 
+    let was_enabled = slack_state.enabled;
     // If already running, restart with new config.
-    if slack_state.enabled {
+    if was_enabled {
         drop(slack_state);
         slack::stop_all(&state).await;
 
@@ -542,9 +551,10 @@ async fn post_slack_configure(
         drop(slack_state);
     }
 
-    // Read enabled state after restart to avoid returning stale value.
-    let enabled = state.inner.slack.lock().await.enabled;
-    Ok(Json(SlackConfigureResponse { enabled }))
+    // Return the known state: true if we just restarted, false if not yet enabled.
+    Ok(Json(SlackConfigureResponse {
+        enabled: was_enabled,
+    }))
 }
 
 async fn post_slack_enable(
