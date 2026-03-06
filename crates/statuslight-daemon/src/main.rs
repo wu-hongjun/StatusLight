@@ -1,4 +1,5 @@
 mod api;
+mod button;
 mod slack;
 mod state;
 mod token_store;
@@ -154,6 +155,21 @@ async fn main() -> Result<()> {
         state.inner.slack.lock().await.enabled = true;
     }
 
+    // Start button polling if enabled.
+    if config.button.enabled {
+        button::start_button_poll(
+            &state,
+            config.button.poll_interval_secs,
+            config.button.slack_sync,
+        )
+        .await;
+        log::info!(
+            "Button polling enabled ({}s interval, slack_sync={})",
+            config.button.poll_interval_secs,
+            config.button.slack_sync
+        );
+    }
+
     // Spawn a non-blocking update check on startup.
     update::spawn_check_if_due();
 
@@ -200,6 +216,9 @@ async fn main() -> Result<()> {
 
     // Clean up socket file.
     let _ = std::fs::remove_file(&args.socket);
+
+    // Stop button polling.
+    button::stop_button_poll(&state).await;
 
     // Stop all Slack tasks.
     slack::stop_all(&state).await;

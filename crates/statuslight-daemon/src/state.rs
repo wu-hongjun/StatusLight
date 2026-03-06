@@ -36,6 +36,8 @@ pub(crate) struct AppStateInner {
     pub(crate) socket_mode_connected: AtomicBool,
     /// Shared HTTP client for all outbound requests (Slack API, etc.).
     pub(crate) http_client: reqwest::Client,
+    /// Handle to the button polling task, if running.
+    pub(crate) button_poll_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 /// Slack configuration and runtime state.
@@ -84,6 +86,7 @@ impl AppState {
                 manual_override: AtomicBool::new(false),
                 socket_mode_connected: AtomicBool::new(false),
                 http_client: reqwest::Client::new(),
+                button_poll_handle: Mutex::new(None),
             }),
         }
     }
