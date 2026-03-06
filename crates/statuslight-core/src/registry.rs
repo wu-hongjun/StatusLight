@@ -3,9 +3,45 @@
 //! The [`DeviceRegistry`] holds all registered [`DeviceDriver`] instances
 //! and provides methods to enumerate and open devices across all drivers.
 
+use std::time::Duration;
+
 use crate::{
     DeviceDriver, DeviceInfo, Result, StatusLightDevice, StatusLightError, SupportedDevice,
 };
+
+/// Maximum time to wait for [`hidapi::HidApi::new()`] before giving up.
+///
+/// On macOS the IOKit backend can deadlock indefinitely; the timeout prevents
+/// the process from hanging forever.
+const HIDAPI_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Attempt to construct a [`hidapi::HidApi`] instance within `timeout`.
+///
+/// `hidapi::HidApi::new()` can block indefinitely on macOS due to an IOKit
+/// backend deadlock. This helper spawns a dedicated OS thread and waits at
+/// most `timeout` for the call to return, returning `None` on timeout or error.
+fn new_hidapi_with_timeout(timeout: Duration) -> Option<hidapi::HidApi> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let result = hidapi::HidApi::new();
+        // Ignore send errors — the receiver may have timed out and been dropped.
+        let _ = tx.send(result);
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(Ok(api)) => Some(api),
+        Ok(Err(e)) => {
+            log::warn!("HidApi::new() failed: {e}");
+            None
+        }
+        Err(_) => {
+            log::warn!(
+                "HidApi::new() timed out after {}s — skipping HID enumeration",
+                timeout.as_secs()
+            );
+            None
+        }
+    }
+}
 
 /// Registry of available device drivers.
 pub struct DeviceRegistry {
@@ -54,12 +90,9 @@ impl DeviceRegistry {
     /// Returns a list of `(driver_id, device_info)` tuples.
     /// Drivers that fail to enumerate are logged and skipped.
     pub fn enumerate_all(&self) -> Vec<(String, DeviceInfo)> {
-        let api = match hidapi::HidApi::new() {
-            Ok(api) => api,
-            Err(e) => {
-                log::warn!("Failed to initialize HidApi: {e}");
-                return Vec::new();
-            }
+        let api = match new_hidapi_with_timeout(HIDAPI_TIMEOUT) {
+            Some(api) => api,
+            None => return Vec::new(),
         };
         let mut all = Vec::new();
         for driver in &self.drivers {
@@ -84,7 +117,8 @@ impl DeviceRegistry {
     /// is tried. Any other error (e.g. `MultipleDevices`, `Hid`) is returned
     /// immediately.
     pub fn open_any(&self) -> Result<Box<dyn StatusLightDevice>> {
-        let api = hidapi::HidApi::new()?;
+        let api =
+            new_hidapi_with_timeout(HIDAPI_TIMEOUT).ok_or(StatusLightError::DeviceNotFound)?;
         for driver in &self.drivers {
             match driver.open(&api) {
                 Ok(device) => return Ok(device),
@@ -101,7 +135,8 @@ impl DeviceRegistry {
         driver_id: &str,
         serial: Option<&str>,
     ) -> Result<Box<dyn StatusLightDevice>> {
-        let api = hidapi::HidApi::new()?;
+        let api =
+            new_hidapi_with_timeout(HIDAPI_TIMEOUT).ok_or(StatusLightError::DeviceNotFound)?;
         let driver = self
             .drivers
             .iter()
