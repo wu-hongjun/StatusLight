@@ -60,6 +60,16 @@ int32_t statuslight_is_connected(void);
 
 Check if a Slicky device is connected. Returns `1` if connected, `0` if not. Never returns error codes.
 
+### `statuslight_get_color`
+
+```c
+int32_t statuslight_get_color(uint8_t *r, uint8_t *g, uint8_t *b);
+```
+
+Read the current color from the device. On success, writes the RGB values to the provided pointers and returns `0`. Returns `-9` if the driver does not support color readback.
+
+All three pointers must be valid, non-null pointers to writable `uint8_t` memory.
+
 ## Return Codes
 
 All functions (except `statuslight_init` and `statuslight_is_connected`) return `int32_t`:
@@ -73,6 +83,10 @@ All functions (except `statuslight_init` and `statuslight_is_connected`) return 
 | `-4` | Invalid color value or unknown preset |
 | `-5` | Invalid argument (null pointer, bad UTF-8) |
 | `-6` | Write failed (byte count mismatch) |
+| `-7` | Unknown or invalid preset |
+| `-8` | Unknown driver |
+| `-9` | Readback not supported |
+| `-10` | Unexpected device response |
 
 ## Swift Usage Example
 

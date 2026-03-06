@@ -128,6 +128,48 @@ List connected Slicky devices.
 
 ---
 
+### `GET /device-color`
+
+Read the current color directly from the device hardware (if the driver supports readback).
+
+**Query parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `device` | string | Optional serial number to target a specific device |
+
+**Response 200** (readback supported):
+
+```json
+{
+  "device_color": { "r": 255, "g": 0, "b": 0, "hex": "#FF0000" },
+  "supports_readback": true
+}
+```
+
+**Response 200** (readback not supported):
+
+```json
+{
+  "device_color": null,
+  "supports_readback": false
+}
+```
+
+**Response 500** (read failed):
+
+```json
+{ "error": "device read timed out" }
+```
+
+**Response 503** (no device):
+
+```json
+{ "error": "no compatible device found" }
+```
+
+---
+
 ### `GET /slack/status`
 
 Get Slack integration status.
