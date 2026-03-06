@@ -12,10 +12,14 @@ use crate::protocol::{self, BUFFER_SIZE, PRODUCT_ID, VENDOR_ID};
 /// Trait for controlling a status light device. Enables mocking in tests.
 pub trait StatusLightDevice: Send {
     /// Human-readable driver name (e.g. "Slicky", "Arduino RGB").
-    fn driver_name(&self) -> &str;
+    fn driver_name(&self) -> &str {
+        "unknown"
+    }
 
     /// Device serial number, if available.
-    fn serial(&self) -> Option<&str>;
+    fn serial(&self) -> Option<&str> {
+        None
+    }
 
     /// Set the device to the given color.
     fn set_color(&self, color: Color) -> Result<()>;

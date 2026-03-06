@@ -33,12 +33,18 @@ impl DeviceRegistry {
     /// Enumerate devices across all registered drivers.
     ///
     /// Returns a list of `(driver_id, device_info)` tuples.
+    /// Drivers that fail to enumerate are logged and skipped.
     pub fn enumerate_all(&self) -> Vec<(String, DeviceInfo)> {
         let mut all = Vec::new();
         for driver in &self.drivers {
-            if let Ok(devices) = driver.enumerate() {
-                for info in devices {
-                    all.push((driver.id().to_string(), info));
+            match driver.enumerate() {
+                Ok(devices) => {
+                    for info in devices {
+                        all.push((driver.id().to_string(), info));
+                    }
+                }
+                Err(e) => {
+                    log::warn!("Driver '{}' enumeration failed: {e}", driver.id());
                 }
             }
         }
@@ -46,13 +52,21 @@ impl DeviceRegistry {
     }
 
     /// Open the first available device from any driver.
+    ///
+    /// Tries each driver in registration order. If a driver returns
+    /// [`DeviceNotFound`](StatusLightError::DeviceNotFound), the next driver
+    /// is tried. Any other error (e.g. `MultipleDevices`, `Hid`) is returned
+    /// immediately.
     pub fn open_any(&self) -> Result<Box<dyn StatusLightDevice>> {
+        let last_error = StatusLightError::DeviceNotFound;
         for driver in &self.drivers {
-            if let Ok(device) = driver.open() {
-                return Ok(device);
+            match driver.open() {
+                Ok(device) => return Ok(device),
+                Err(StatusLightError::DeviceNotFound) => continue,
+                Err(e) => return Err(e),
             }
         }
-        Err(StatusLightError::DeviceNotFound)
+        Err(last_error)
     }
 
     /// Open a device by driver ID and optional serial number.
