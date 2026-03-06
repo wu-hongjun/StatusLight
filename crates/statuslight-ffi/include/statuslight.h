@@ -48,4 +48,21 @@ int32_t statuslight_off(void);
  */
 int32_t statuslight_is_connected(void);
 
+/**
+ * Set the global brightness level (0–100).
+ *
+ * Returns 0 on success, the clamped brightness value is stored.
+ */
+int32_t statuslight_set_brightness(uint8_t brightness);
+
+/**
+ * Get the current brightness level (0–100).
+ */
+int32_t statuslight_get_brightness(void);
+
+/**
+ * Get the number of connected status light devices.
+ */
+int32_t statuslight_device_count(void);
+
 #endif  /* STATUSLIGHT_FFI_H */

@@ -48,6 +48,8 @@ enum Commands {
         #[arg(short, long)]
         verbose: bool,
     },
+    /// List all supported device types
+    Supported,
     /// Play an animation on the light (blocking, Ctrl-C to stop)
     Animate {
         #[command(subcommand)]
@@ -398,6 +400,23 @@ fn main() -> Result<()> {
                     }
                 }
             }
+        }
+        Commands::Supported => {
+            let registry = DeviceRegistry::with_builtins();
+            let all = registry.supported_all();
+            println!("{:<25} {:<28} VID      PID", "DRIVER", "DEVICE");
+            println!("{}", "-".repeat(70));
+            for (driver_name, devices) in &all {
+                for dev in devices {
+                    println!(
+                        "{:<25} {:<28} 0x{:04x}   0x{:04x}",
+                        driver_name, dev.name, dev.vid, dev.pid,
+                    );
+                }
+            }
+            println!();
+            let total: usize = all.iter().map(|(_, d)| d.len()).sum();
+            println!("{} devices across {} drivers", total, all.len());
         }
         Commands::Animate { action } => {
             let (anim_type, colors, speed, brightness) = match action {

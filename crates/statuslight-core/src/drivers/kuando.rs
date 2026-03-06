@@ -22,14 +22,16 @@ use crate::color::Color;
 use crate::device::DeviceInfo;
 use crate::drivers::hid_helpers;
 use crate::error::{Result, StatusLightError};
-use crate::{DeviceDriver, StatusLightDevice};
+use crate::{DeviceDriver, StatusLightDevice, SupportedDevice};
 
 /// Kuando VID/PID pairs (multiple hardware revisions).
 const VID_PID: &[(u16, u16)] = &[
-    (0x27bb, 0x3bca),
-    (0x27bb, 0x3bcd),
-    (0x27bb, 0x3bcf),
-    (0x04d8, 0xf848),
+    (0x27bb, 0x3bca), // Busylight UC Alpha
+    (0x27bb, 0x3bcb), // Busylight Alpha (variant)
+    (0x27bb, 0x3bcd), // Busylight UC Omega
+    (0x27bb, 0x3bce), // Busylight Omega (variant)
+    (0x27bb, 0x3bcf), // Busylight (variant)
+    (0x04d8, 0xf848), // Busylight Alpha (Microchip VID)
 ];
 
 const PACKET_SIZE: usize = 64;
@@ -204,6 +206,28 @@ impl DeviceDriver for KuandoDriver {
 
     fn display_name(&self) -> &str {
         "Kuando Busylight"
+    }
+
+    fn supported_hardware(&self) -> Vec<SupportedDevice> {
+        VID_PID
+            .iter()
+            .map(|&(vid, pid)| {
+                let name = match (vid, pid) {
+                    (0x27bb, 0x3bca) => "Busylight UC Alpha",
+                    (0x27bb, 0x3bcb) => "Busylight Alpha",
+                    (0x27bb, 0x3bcd) => "Busylight UC Omega",
+                    (0x27bb, 0x3bce) => "Busylight Omega",
+                    (0x27bb, 0x3bcf) => "Busylight",
+                    (0x04d8, 0xf848) => "Busylight Alpha",
+                    _ => "Busylight",
+                };
+                SupportedDevice {
+                    name: name.into(),
+                    vid,
+                    pid,
+                }
+            })
+            .collect()
     }
 
     fn enumerate(&self) -> Result<Vec<DeviceInfo>> {

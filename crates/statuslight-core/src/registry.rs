@@ -3,7 +3,9 @@
 //! The [`DeviceRegistry`] holds all registered [`DeviceDriver`] instances
 //! and provides methods to enumerate and open devices across all drivers.
 
-use crate::{DeviceDriver, DeviceInfo, Result, StatusLightDevice, StatusLightError};
+use crate::{
+    DeviceDriver, DeviceInfo, Result, StatusLightDevice, StatusLightError, SupportedDevice,
+};
 
 /// Registry of available device drivers.
 pub struct DeviceRegistry {
@@ -27,12 +29,24 @@ impl DeviceRegistry {
         reg.register(Box::new(crate::drivers::BlinkStickDriver));
         reg.register(Box::new(crate::drivers::EmbravaDriver));
         reg.register(Box::new(crate::drivers::KuandoDriver));
+        reg.register(Box::new(crate::drivers::EposDriver));
+        reg.register(Box::new(crate::drivers::MuteMeDriver));
         reg
     }
 
     /// Register a device driver.
     pub fn register(&mut self, driver: Box<dyn DeviceDriver>) {
         self.drivers.push(driver);
+    }
+
+    /// List all supported hardware across all registered drivers.
+    ///
+    /// Returns `(driver_display_name, supported_devices)` tuples.
+    pub fn supported_all(&self) -> Vec<(String, Vec<SupportedDevice>)> {
+        self.drivers
+            .iter()
+            .map(|d| (d.display_name().to_string(), d.supported_hardware()))
+            .collect()
     }
 
     /// Enumerate devices across all registered drivers.

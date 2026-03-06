@@ -17,7 +17,7 @@ use crate::color::Color;
 use crate::device::DeviceInfo;
 use crate::drivers::hid_helpers;
 use crate::error::{Result, StatusLightError};
-use crate::{DeviceDriver, StatusLightDevice};
+use crate::{DeviceDriver, StatusLightDevice, SupportedDevice};
 
 /// Luxafor VID/PID.
 const VID_PID: &[(u16, u16)] = &[(0x04d8, 0xf372)];
@@ -70,6 +70,14 @@ impl DeviceDriver for LuxaforDriver {
 
     fn display_name(&self) -> &str {
         "Luxafor Flag"
+    }
+
+    fn supported_hardware(&self) -> Vec<SupportedDevice> {
+        vec![SupportedDevice {
+            name: "Luxafor Flag / Orb / Mute / Bluetooth".into(),
+            vid: 0x04d8,
+            pid: 0xf372,
+        }]
     }
 
     fn enumerate(&self) -> Result<Vec<DeviceInfo>> {

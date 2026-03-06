@@ -3,12 +3,12 @@
 /// All errors that can occur in statuslight-core operations.
 #[derive(Debug, thiserror::Error)]
 pub enum StatusLightError {
-    /// No device was found on the USB bus.
-    #[error("no Slicky device found (VID=0x04D8, PID=0xEC24)")]
+    /// No matching device was found on the USB bus.
+    #[error("no compatible device found")]
     DeviceNotFound,
 
     /// Multiple devices found; a serial number is required to disambiguate.
-    #[error("multiple Slicky devices found ({count}); specify a serial number")]
+    #[error("multiple devices found ({count}); specify a serial number")]
     MultipleDevices { count: usize },
 
     /// An error from the underlying HID library.

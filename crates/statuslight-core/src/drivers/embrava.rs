@@ -21,14 +21,18 @@ use crate::color::Color;
 use crate::device::DeviceInfo;
 use crate::drivers::hid_helpers;
 use crate::error::{Result, StatusLightError};
-use crate::{DeviceDriver, StatusLightDevice};
+use crate::{DeviceDriver, StatusLightDevice, SupportedDevice};
 
 /// Embrava VID/PID pairs (multiple hardware revisions).
 const VID_PID: &[(u16, u16)] = &[
-    (0x2c0d, 0x0001),
-    (0x2c0d, 0x000a),
-    (0x2c0d, 0x000c),
-    (0x047f, 0xd005),
+    (0x2c0d, 0x0001), // Blynclight
+    (0x2c0d, 0x0002), // Blynclight Plus
+    (0x2c0d, 0x000a), // Blynclight Mini
+    (0x2c0d, 0x000c), // Blynclight (variant)
+    (0x2c0d, 0x0010), // Blynclight Plus (variant)
+    (0x0e53, 0x2516), // Embrava Connect
+    (0x0e53, 0x2517), // Embrava Connect Mini
+    (0x047f, 0xd005), // Plantronics Status Indicator (Embrava OEM)
 ];
 
 const REPORT_SIZE: usize = 9;
@@ -92,6 +96,30 @@ impl DeviceDriver for EmbravaDriver {
 
     fn display_name(&self) -> &str {
         "Embrava Blynclight"
+    }
+
+    fn supported_hardware(&self) -> Vec<SupportedDevice> {
+        VID_PID
+            .iter()
+            .map(|&(vid, pid)| {
+                let name = match (vid, pid) {
+                    (0x2c0d, 0x0001) => "Blynclight",
+                    (0x2c0d, 0x0002) => "Blynclight Plus",
+                    (0x2c0d, 0x000a) => "Blynclight Mini",
+                    (0x2c0d, 0x000c) => "Blynclight",
+                    (0x2c0d, 0x0010) => "Blynclight Plus",
+                    (0x0e53, 0x2516) => "Embrava Connect",
+                    (0x0e53, 0x2517) => "Embrava Connect Mini",
+                    (0x047f, 0xd005) => "Plantronics Status Indicator",
+                    _ => "Blynclight",
+                };
+                SupportedDevice {
+                    name: name.into(),
+                    vid,
+                    pid,
+                }
+            })
+            .collect()
     }
 
     fn enumerate(&self) -> Result<Vec<DeviceInfo>> {

@@ -19,7 +19,7 @@ use crate::color::Color;
 use crate::device::DeviceInfo;
 use crate::drivers::hid_helpers;
 use crate::error::Result;
-use crate::{DeviceDriver, StatusLightDevice};
+use crate::{DeviceDriver, StatusLightDevice, SupportedDevice};
 
 /// Blink(1) VID/PID.
 const VID_PID: &[(u16, u16)] = &[(0x27b8, 0x01ed)];
@@ -78,6 +78,14 @@ impl DeviceDriver for Blink1Driver {
 
     fn display_name(&self) -> &str {
         "Blink(1)"
+    }
+
+    fn supported_hardware(&self) -> Vec<SupportedDevice> {
+        vec![SupportedDevice {
+            name: "Blink(1) mk1/mk2/mk3".into(),
+            vid: 0x27b8,
+            pid: 0x01ed,
+        }]
     }
 
     fn enumerate(&self) -> Result<Vec<DeviceInfo>> {

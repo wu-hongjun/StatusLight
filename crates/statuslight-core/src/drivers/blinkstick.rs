@@ -1,6 +1,6 @@
 //! BlinkStick USB light device driver.
 //!
-//! The BlinkStick uses HID output reports with **GRB** color order.
+//! The BlinkStick uses HID **feature reports** with **GRB** color order.
 //!
 //! ## Protocol (single LED, report ID 0x01)
 //!
@@ -17,7 +17,7 @@ use crate::color::Color;
 use crate::device::DeviceInfo;
 use crate::drivers::hid_helpers;
 use crate::error::Result;
-use crate::{DeviceDriver, StatusLightDevice};
+use crate::{DeviceDriver, StatusLightDevice, SupportedDevice};
 
 /// BlinkStick VID/PID.
 const VID_PID: &[(u16, u16)] = &[(0x20a0, 0x41e5)];
@@ -63,6 +63,14 @@ impl DeviceDriver for BlinkStickDriver {
 
     fn display_name(&self) -> &str {
         "BlinkStick"
+    }
+
+    fn supported_hardware(&self) -> Vec<SupportedDevice> {
+        vec![SupportedDevice {
+            name: "BlinkStick / Pro / Square / Strip / Nano / Flex".into(),
+            vid: 0x20a0,
+            pid: 0x41e5,
+        }]
     }
 
     fn enumerate(&self) -> Result<Vec<DeviceInfo>> {
