@@ -264,21 +264,26 @@ async fn post_color(
     Json(req): Json<ColorRequest>,
 ) -> Result<Json<SetColorResponse>, (StatusCode, Json<ErrorResponse>)> {
     // Try as hex first, then as preset name (with config overrides), then custom presets.
+    let color_name = req.color.clone();
     let color = Color::from_hex(&req.color)
         .or_else(|_| {
-            let config = statuslight_core::Config::load().unwrap_or_default();
+            // Config::load() does synchronous file I/O; resolve synchronously here
+            // since we're already in a closure. The outer handler is async.
+            let config = tokio::task::block_in_place(|| {
+                statuslight_core::Config::load().unwrap_or_default()
+            });
             // Check built-in presets with color overrides.
-            Preset::from_name(&req.color)
+            Preset::from_name(&color_name)
                 .map(|p| p.color_with_overrides(&config.colors))
                 .or_else(|_| {
                     // Check custom presets.
                     config
                         .custom_presets
                         .iter()
-                        .find(|cp| cp.name == req.color)
+                        .find(|cp| cp.name == color_name)
                         .map(|cp| Color::from_hex(&cp.color))
                         .transpose()?
-                        .ok_or_else(|| StatusLightError::UnknownPreset(req.color.clone()))
+                        .ok_or_else(|| StatusLightError::UnknownPreset(color_name.clone()))
                 })
         })
         .map_err(map_error)?;
@@ -511,10 +516,6 @@ async fn post_slack_configure(
         slack_state.emoji_colors = emoji_colors;
     }
 
-    let response = SlackConfigureResponse {
-        enabled: slack_state.enabled,
-    };
-
     // If already running, restart with new config.
     if slack_state.enabled {
         drop(slack_state);
@@ -537,9 +538,13 @@ async fn post_slack_configure(
             slack::start_emoji_poll(&state).await;
         }
         state.inner.slack.lock().await.enabled = true;
+    } else {
+        drop(slack_state);
     }
 
-    Ok(Json(response))
+    // Read enabled state after restart to avoid returning stale value.
+    let enabled = state.inner.slack.lock().await.enabled;
+    Ok(Json(SlackConfigureResponse { enabled }))
 }
 
 async fn post_slack_enable(

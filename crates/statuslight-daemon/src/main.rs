@@ -160,10 +160,10 @@ async fn main() -> Result<()> {
     }
 
     // Graceful shutdown on SIGINT / SIGTERM.
-    let shutdown_signal = async {
+    let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        .map_err(|e| anyhow::anyhow!("failed to install SIGTERM handler: {e}"))?;
+    let shutdown_signal = async move {
         let ctrl_c = tokio::signal::ctrl_c();
-        let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("failed to register SIGTERM handler");
         tokio::select! {
             _ = ctrl_c => { log::info!("Received SIGINT, shutting down"); }
             _ = sigterm.recv() => { log::info!("Received SIGTERM, shutting down"); }
