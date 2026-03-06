@@ -745,7 +745,7 @@ struct ColorGridSection: View {
         ("available", "Available", Color(red: 0, green: 1, blue: 0)),
         ("busy", "Busy", Color(red: 1, green: 0, blue: 0)),
         ("away", "Away", Color(red: 1, green: 1, blue: 0)),
-        ("in-meeting", "In Meeting", Color(red: 1, green: 0.27, blue: 0)),
+        ("in-meeting", "In Meeting", Color(red: 1, green: 1, blue: 1)),
     ]
 
     private let colorPresets: [(name: String, label: String, color: Color)] = [
@@ -1456,7 +1456,7 @@ func colorForPreset(_ name: String) -> Color {
     case "white": return Color(red: 1, green: 1, blue: 1)
     case "orange": return Color(red: 1, green: 0.65, blue: 0)
     case "purple": return Color(red: 0.5, green: 0, blue: 0.5)
-    case "in-meeting": return Color(red: 1, green: 0.27, blue: 0)
+    case "in-meeting": return Color(red: 1, green: 1, blue: 1)
     default: return Color.gray
     }
 }
