@@ -141,7 +141,7 @@ pub struct SlackConfig {
     #[serde(default)]
     pub events_enabled: bool,
     /// Emoji-to-color mappings (e.g. `":no_entry:" = "#FF0000"`).
-    #[serde(default)]
+    #[serde(default = "default_emoji_colors")]
     pub emoji_colors: HashMap<String, String>,
     /// Event-driven animation rules.
     #[serde(default)]
@@ -194,12 +194,28 @@ impl Default for SlackConfig {
             bot_token: None,
             user_token: None,
             events_enabled: false,
-            emoji_colors: HashMap::new(),
+            emoji_colors: default_emoji_colors(),
             rules: Vec::new(),
             token: None,
             poll_interval_secs: 30,
         }
     }
+}
+
+fn default_emoji_colors() -> HashMap<String, String> {
+    [
+        (":spiral_calendar_pad:", "#FFFFFF"), // In a meeting → white
+        (":calendar:", "#FFFFFF"),            // Calendar → white
+        (":no_entry:", "#FF0000"),            // Busy → red
+        (":no_entry_sign:", "#FF0000"),       // No entry sign → red
+        (":away:", "#FFFF00"),                // Away → yellow
+        (":palm_tree:", "#FFFF00"),           // Vacationing → yellow
+        (":house_with_garden:", "#00FF00"),   // Working remotely → green
+        (":large_green_circle:", "#00FF00"),  // Available → green
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 }
 
 /// Startup / launchd settings.
@@ -366,7 +382,7 @@ mod tests {
         assert!(config.slack.bot_token.is_none());
         assert!(config.slack.user_token.is_none());
         assert!(!config.slack.events_enabled);
-        assert!(config.slack.emoji_colors.is_empty());
+        assert!(!config.slack.emoji_colors.is_empty());
         assert!(config.slack.rules.is_empty());
         assert!(!config.startup.enabled);
         assert!(config.updates.auto_check);
