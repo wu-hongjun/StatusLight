@@ -42,7 +42,7 @@ int32_t statuslight_set_preset(const char *name);
 int32_t statuslight_off(void);
 
 /**
- * Check if a Slicky device is connected.
+ * Check if any status light device is connected.
  *
  * Returns `1` if connected, `0` if not. Never returns error codes.
  */

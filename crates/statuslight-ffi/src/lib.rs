@@ -68,7 +68,7 @@ pub unsafe extern "C" fn statuslight_set_hex(hex: *const c_char) -> i32 {
             return -5;
         }
         // SAFETY: caller guarantees `hex` is a valid null-terminated C string.
-        let c_str = unsafe { CStr::from_ptr(hex) };
+        let c_str = CStr::from_ptr(hex);
         let s = match c_str.to_str() {
             Ok(s) => s,
             Err(_) => return -5,
@@ -93,7 +93,7 @@ pub unsafe extern "C" fn statuslight_set_preset(name: *const c_char) -> i32 {
             return -5;
         }
         // SAFETY: caller guarantees `name` is a valid null-terminated C string.
-        let c_str = unsafe { CStr::from_ptr(name) };
+        let c_str = CStr::from_ptr(name);
         let s = match c_str.to_str() {
             Ok(s) => s,
             Err(_) => return -5,
@@ -121,5 +121,5 @@ pub extern "C" fn statuslight_is_connected() -> i32 {
         let registry = DeviceRegistry::with_builtins();
         i32::from(!registry.enumerate_all().is_empty())
     })
-    .unwrap_or_default()
+    .unwrap_or(-3)
 }

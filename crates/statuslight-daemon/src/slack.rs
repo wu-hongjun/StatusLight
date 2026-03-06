@@ -224,14 +224,14 @@ async fn handle_user_change(
         return;
     }
 
-    // User explicitly changed their Slack status — clear manual override so
-    // Slack-driven sync takes effect again.
-    state.inner.manual_override.store(false, Ordering::SeqCst);
-
     // Don't overwrite an in-progress event animation.
     if state.inner.event_animation_active.load(Ordering::SeqCst) {
         return;
     }
+
+    // User explicitly changed their Slack status — clear manual override so
+    // Slack-driven sync takes effect again.
+    state.inner.manual_override.store(false, Ordering::SeqCst);
 
     let profile = &event["user"]["profile"];
     let emoji = match profile["status_emoji"].as_str() {
