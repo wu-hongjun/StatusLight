@@ -53,14 +53,14 @@ StatusLight supports **22 devices** across **8 driver families**. The Lexcelon S
 
 | Driver | Devices | Support Level |
 |--------|---------|---------------|
-| **Lexcelon Slicky** | Slicky | Official |
-| Blink(1) | mk1, mk2, mk3 | Community |
-| BlinkStick | BlinkStick, Strip, Nano, Flex, Square | Community |
-| Embrava | Blynclight, Blynclight Plus, Blynclight Mini | Community |
-| EPOS | Busylight Omega, Busylight Alpha | Community |
-| Kuando | Busylight UC Omega, Busylight UC Alpha | Community |
-| Luxafor | Flag, Mute, Orb, Bluetooth | Community |
-| MuteMe | MuteMe Original, MuteMe Mini | Community |
+| **[Lexcelon Slicky](https://www.lexcelon.com/products/slicky)** | Slicky | Official |
+| [Blink(1)](https://blink1.thingm.com/) | mk1, mk2, mk3 | Community |
+| [BlinkStick](https://www.blinkstick.com/) | BlinkStick, Strip, Nano, Flex, Square | Community |
+| [Embrava](https://www.embrava.com/products) | Blynclight, Blynclight Plus, Blynclight Mini | Community |
+| [EPOS](https://www.eposaudio.com/en/us/products/ui-20-bl-usb-accessory-1000828) | Busylight Omega, Busylight Alpha | Community |
+| [Kuando](https://www.plenom.com/) | Busylight UC Omega, Busylight UC Alpha | Community |
+| [Luxafor](https://luxafor.com/product/flag/) | Flag, Mute, Orb, Bluetooth | Community |
+| [MuteMe](https://muteme.com/) | MuteMe Original, MuteMe Mini | Community |
 
 Run `statuslight supported` to see the full compatibility table with vendor/product IDs.
 
